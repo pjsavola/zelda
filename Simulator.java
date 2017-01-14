@@ -10,6 +10,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseListener;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Simulator {
 	
@@ -390,8 +392,18 @@ class Vision {
 	            }
 	 
 	            //check if it's within the lightable area and light if needed
-	            if (rStrat.radius(deltaX, deltaY) <= radius) {
-	                float bright = (float) (1 - (rStrat.radius(deltaX, deltaY) / radius));
+	            float r = rStrat.radius(deltaX, deltaY);
+	            if (r <= radius) {
+	                float bright = (float) (1 - (r / radius));
+	                double resistance = getResistance(currentX, currentY, r);
+	                bright -= resistance;
+	                if (bright < 0) bright = 0;
+	                /*
+	                if (resistance < 1) {
+	                	bright *= 1 - resistance;
+	                } else {
+	                	bright = 0;
+	                }*/
 	                lightMap[currentX][currentY] = bright;
 	            }
 	 
@@ -413,6 +425,40 @@ class Vision {
 	        }
 	    }
 	}
+
+	private double getResistance(int x2, int y2, float r) {
+		int x1 = startx;
+		int y1 = starty;
+		double sum = 0;
+		int tiles = 0; 
+		int dx = Math.abs(x2 - x1);
+		int dy = Math.abs(y2 - y1);
+		int sx = (x1 < x2) ? 1 : -1;
+		int sy = (y1 < y2) ? 1 : -1;
+		int err = dx - dy;
+		while (true) {
+			if (x1 == x2 && y1 == y2) {
+				break;
+			}
+			float res = resistanceMap[x1][y1];
+			if (res < 1 && tiles++ > 0) {
+				sum += res;
+			}
+			int e2 = 2 * err;
+			if (e2 > -dy) {
+				err -= dy;
+				x1 += sx;
+			}
+			if (e2 < dx) {
+				err += dx;
+				y1 += sy;
+			}
+		}
+		if (tiles > 1) {
+			//sum *= (r - 1) / (tiles - 1);
+		}
+		return sum;
+	}
 }
 
 class Tile {
@@ -420,7 +466,7 @@ class Tile {
 	static Tile WATER = new Tile("Water", 0, Color.BLUE, 1.0, 1.0);
 	static Tile GRASS = new Tile("Grass", 1, Color.GREEN, 0.1, 1.0);
 	static Tile FOREST = new Tile("Forest", 2, Color.GREEN.darker().darker(), 0.3, 0.5);
-	static Tile MOUNTAIN = new Tile("Mountain", 3, Color.GRAY, 0.8, 0.2);
+	static Tile MOUNTAIN = new Tile("Mountain", 3, Color.GRAY, 0.8, 0.7);
 	static Tile WALL = new Tile("Wall", 4, Color.DARK_GRAY, 1.0, 0.0);
 	static Tile ROAD = new Tile("Road", 5, Color.BLACK, 0.0, 1.0);
 	
