@@ -15,7 +15,7 @@ class Canvas extends JComponent {
 	private final int gridOffsetX = 10;
 	private final int gridOffsetY = 10;
 	private final int gridSize = 23;
-	private final int tileSize = 16;
+	private final int tileSize = Tile.tileSize;
 	private final int playerSize = 11;
 	private final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
 	private final int middleCornerY = gridOffsetY + gridSize / 2 * tileSize;
@@ -28,11 +28,12 @@ class Canvas extends JComponent {
 	private double positionX = 5.0;
 	private double positionY = 5.0;
 
-	private double velocity = 4.0;
 	private float vision = 11.0f;
 	
 	private Double targetX;
 	private Double targetY;
+	
+	private long time = 0;
 	
 	private Vision visionCache;
 	
@@ -110,12 +111,14 @@ class Canvas extends JComponent {
 			}
 
 			if (moveX) {
+				time += refreshRate * Math.abs(directionX);
 				if (map(positionX) != map(newPositionX)) {
 					visionCache = null;
 				}
 				positionX = newPositionX;
 			}
 			if (moveY) {
+				time += refreshRate * Math.abs(directionY);
 				if (map(positionY) != map(newPositionY)) {
 					visionCache = null;
 				}
@@ -155,6 +158,17 @@ class Canvas extends JComponent {
 
 		final int x = map(positionX);
 		final int y = map(positionY);
+		
+		float vision = this.vision;
+		long gameTime = time * 1000;
+		long secs = gameTime / 1000;
+		long mins = secs / 60;
+		long hours = mins / 60;
+		long h = (hours + 12) % 24;
+		long factor = Math.abs(12 - h);
+		if (factor >= 6) {
+			vision -= (factor - 6); 
+		}
 
 		final int minX = Math.max(0, x - (int) vision);
 		final int maxX = Math.min(width, x + (int) vision);
@@ -167,6 +181,7 @@ class Canvas extends JComponent {
 			visionCache.calculateFOV();
 		}
 		
+		
 		// Paint terrain
 		for (int i = minX; i < maxX; i++) {
 			for (int j = minY; j < maxY; j++) {
@@ -174,6 +189,7 @@ class Canvas extends JComponent {
 				double dy = positionY - j;
 				if (Math.hypot(dx,dy) < vision) {
 					float light = visionCache.getLightness(i, j);
+					//light -= darkness;
 					if (light > 0) {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
@@ -186,18 +202,24 @@ class Canvas extends JComponent {
 		// Paint adventurer
 		g.setColor(Color.RED);
 		g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
+		
+		g.drawString(convertTime(time), 400, 400);
 	}
 	
-
+	private static String convertTime(long time) {
+		long gameTime = time * 1000;
+		long secs = gameTime / 1000;
+		long mins = secs / 60;
+		long hours = mins / 60;
+		mins = mins % 60;
+		long h = (hours + 12) % 24;
+		String extra0 = mins < 10 ? "0" : "";
+		return h + ":" + extra0 + mins;
+	}
 	
 	public void click(int x, int y) {
 		double dx = x - middleX;
 		double dy = y - middleY;
-		/*
-		double hyp = Math.hypot(dx, dy);
-		directionX = dx / hyp;
-		directionY = dy / hyp;
-		*/
 		targetX = positionX + dx / tileSize;
 		targetY = positionY + dy / tileSize;
 		System.err.println("Targeting " + targetX + ", " + targetY);
