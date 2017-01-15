@@ -4,8 +4,6 @@ public class Vision {
 
 	final int minX;
 	final int minY;
-	final int x;
-	final int y;
 	final int startx;
 	final int starty;
 	final float radius;
@@ -17,8 +15,6 @@ public class Vision {
 	public Vision(int minX, int x, int maxX, int minY, int y, int maxY, Tile[][] grid, float radius) {
 		this.minX = minX;
 		this.minY = minY;
-		this.x = x;
-		this.y = y;
 		startx = x - minX;
 		starty = y - minY;
 		width = maxX - minX;
@@ -49,7 +45,7 @@ public class Vision {
 		return lightMap[x - minX][y - minY];
 	}
 	
-	public static float radius(int dx, int dy) {
+	private static float radius(int dx, int dy) {
 		return (float) Math.hypot(dx, dy);
 	}
 	
@@ -73,7 +69,7 @@ public class Vision {
 	                break;
 	            }
 	 
-	            //check if it's within the lightable area and light if needed
+	            // check if it's within the lightable area and light if needed
 	            float r = radius(deltaX, deltaY);
 	            if (r <= radius) {
 	                float bright = 1.0f - r / radius;
@@ -85,7 +81,7 @@ public class Vision {
 	                lightMap[currentX][currentY] = bright;
 	            }
 	 
-	            if (blocked) { //previous cell was a blocking one
+	            if (blocked) { // previous cell was a blocking one
 	                if (resistanceMap[currentX][currentY] >= 1) {//hit a wall
 	                    newStart = rightSlope;
 	                    continue;

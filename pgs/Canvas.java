@@ -31,14 +31,33 @@ class Canvas extends JComponent {
 	private double velocity = 4.0;
 	private float vision = 11.0f;
 	
-	private double directionX;
-	private double directionY;
 	private Double targetX;
 	private Double targetY;
 	
 	private Vision visionCache;
 	
-	private Tile[][] grid = new Tile[width][height]; 
+	private Tile[][] grid = new Tile[width][height];
+	
+	private boolean cornerCollides(double newPositionX, double newPositionY, double radius) {
+		double x = newPositionX + radius;
+		double y = newPositionY + radius;
+		if (grid[map(x)][map(y)].getVelocity() == 0) {
+			return true;
+		}
+		y = newPositionY - radius;
+		if (grid[map(x)][map(y)].getVelocity() == 0) {
+			return true;
+		}
+		x = newPositionX - radius;
+		if (grid[map(x)][map(y)].getVelocity() == 0) {
+			return true;
+		}
+		y = newPositionY + radius;
+		if (grid[map(x)][map(y)].getVelocity() == 0) {
+			return true;
+		}
+		return false;
+	}
 	
 	private final Timer timer = new Timer(refreshRate, new ActionListener() {
 		@Override
@@ -49,86 +68,47 @@ class Canvas extends JComponent {
 				return;
 			}
 			
-			// Stuck?
-			if (directionX == 0 && directionY == 0) {
-				return;
-			}
+			double dx = targetX - positionX;
+			double dy = targetY - positionY;
+			double hyp = Math.hypot(dx, dy);
+			double directionX = dx / hyp;
+			double directionY = dy / hyp;
+			float velocity = grid[map(positionX)][map(positionY)].getVelocity();
 			
 			double newPositionX = positionX + velocity * directionX * refreshRate / 1000.0;
 			double newPositionY = positionY + velocity * directionY * refreshRate / 1000.0;
-			
-			double distance = Math.hypot(targetX - positionX, targetY - positionY);
-			double newDistance = Math.hypot(targetX - newPositionX, targetY - newPositionY);
 
-			// Not getting any closer
-			if (newDistance > distance) {
-				directionX = 0;
-				directionY = 0;
-				return;
-			}
-
-			boolean collision = false;
 			boolean moveX = true;
 			boolean moveY = true;
 			double radius = 0.5 * playerSize / tileSize;
-			for (int i = 0; i < 2; i++) {
-				for (int j = 0; j < 2; j++) {
-					double x = newPositionX + (i == 0 ? radius : -radius);
-					double y = newPositionY + (j == 0 ? radius : -radius);
-					if (grid[map(x)][map(y)].getSolidity() == 1.0) {
-						collision = true;
-						break;
-					}
-				}
-			}
+			boolean collision = cornerCollides(newPositionX, newPositionY, radius);
 			if (collision) {
-				moveX = true;
-				moveY = true;
-				for (int i = 0; i < 2; i++) {
-					for (int j = 0; j < 2; j++) {
-						double x = positionX + (i == 0 ? radius : -radius);
-						double y = newPositionY + (j == 0 ? radius : -radius);
-						if (grid[map(x)][map(y)].getSolidity() == 1.0) {
-							moveY = false;
-							break;
-						}
-					}
-				}
-				for (int i = 0; i < 2; i++) {
-					for (int j = 0; j < 2; j++) {
-						double x = newPositionX + (i == 0 ? radius : -radius);
-						double y = positionY + (j == 0 ? radius : -radius);
-						if (grid[map(x)][map(y)].getSolidity() == 1.0) {
-							moveX = false;
-							break;
-						}
-					}
-				}
+				moveY = !cornerCollides(positionX, newPositionY, radius);
+				moveX = !cornerCollides(newPositionX, positionY, radius);
 				if (moveX && moveY) {
+					// Both directions separately are ok, but combined
+					// not ok, let's stop instead of guessing which
+					// direction would be better.
 					return;
+				}
+				if (!moveY) {
+					newPositionY = positionY;
+				}
+				if (!moveX) {
+					newPositionX = positionX;
 				}
 			}
 
-			if (moveX && !moveY) {
-				newDistance = Math.hypot(targetX - newPositionX, targetY - positionY);
-				// Not getting any closer
-				if (newDistance > distance) {
-					directionX = 0;
-					directionY = 0;
-					return;
-				}
-				directionY = 0;
+			double distance = Math.hypot(targetX - positionX, targetY - positionY);
+			double newDistance = Math.hypot(targetX - newPositionX, targetY - newPositionY);
+
+			// Not getting any closer, stop moving
+			if (newDistance > distance) {
+				targetX = null;
+				targetY = null;
+				return;
 			}
-			if (!moveX && moveY) {
-				newDistance = Math.hypot(targetX - positionX, targetY - newPositionY);
-				// Not getting any closer
-				if (newDistance > distance) {
-					directionX = 0;
-					directionY = 0;
-					return;
-				}
-				directionX = 0;
-			}
+
 			if (moveX) {
 				if (map(positionX) != map(newPositionX)) {
 					visionCache = null;
@@ -158,6 +138,8 @@ class Canvas extends JComponent {
 					grid[i][j] = Tile.MOUNTAIN;
 				} else if (i > 5 && i < 45 && j == 5) {
 					grid[i][j] = Tile.WALL;
+				} else if (i > 5 && i < 45 && j == 8) {
+					grid[i][j] = Tile.ROAD;
 				} else {
 					grid[i][j] = Tile.GRASS;
 				}
@@ -193,9 +175,9 @@ class Canvas extends JComponent {
 				if (Math.hypot(dx,dy) < vision) {
 					float light = visionCache.getLightness(i, j);
 					if (light > 0) {
-						Color color = adjustColor(grid[i][j].getColor(), light);
-						g.setColor(color);
-						g.fillRect(middleCornerX - (int) (dx * tileSize), middleCornerY - (int) (dy * tileSize), tileSize, tileSize);
+						int px = middleCornerX - (int) (dx * tileSize);
+						int py = middleCornerY - (int) (dy * tileSize);
+						grid[i][j].render(g, px, py, light);
 					}
 				}
 			}
@@ -206,26 +188,19 @@ class Canvas extends JComponent {
 		g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
 	}
 	
-	private static Color adjustColor(Color color, float light) {
-		int blue = color.getBlue();
-		int green = color.getGreen();
-		int red = color.getRed();
-		int newBlue = (int) (blue * light);
-		int newGreen = (int) (green * light);
-		int newRed = (int) (red * light);
-		return new Color(newRed, newGreen, newBlue);
-	}
+
 	
 	public void click(int x, int y) {
 		double dx = x - middleX;
 		double dy = y - middleY;
+		/*
 		double hyp = Math.hypot(dx, dy);
 		directionX = dx / hyp;
 		directionY = dy / hyp;
+		*/
 		targetX = positionX + dx / tileSize;
 		targetY = positionY + dy / tileSize;
 		System.err.println("Targeting " + targetX + ", " + targetY);
-		System.err.println("Direction " + directionX + ", " + directionY);
 	}
 	
 	public void press() {
