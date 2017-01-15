@@ -138,11 +138,16 @@ class Canvas extends JComponent {
 				if (i == 0 || i == width - 1 || j == 0 || j == height - 1 || (i == 1 && j == 1)) {
 					grid[i][j] = Tile.WATER;
 				} else if (Math.hypot(i - 20, j - 20) < 8) {
-					grid[i][j] = Tile.MOUNTAIN;
+					if (Math.hypot(i - 20, j - 20) < 5)
+						grid[i][j] = Tile.MOUNTAIN;
+					else
+						grid[i][j] = Tile.HILL;
 				} else if (i > 5 && i < 45 && j == 5) {
 					grid[i][j] = Tile.WALL;
 				} else if (i > 5 && i < 45 && j == 8) {
 					grid[i][j] = Tile.ROAD;
+				} else if (Math.hypot(i - 40, j - 20) < 6) {
+					grid[i][j] = Tile.FOREST;
 				} else {
 					grid[i][j] = Tile.GRASS;
 				}
@@ -167,7 +172,8 @@ class Canvas extends JComponent {
 		long h = (hours + 12) % 24;
 		long factor = Math.abs(12 - h);
 		if (factor >= 6) {
-			vision -= (factor - 6); 
+			vision -= (factor - 6);
+			visionCache = null;
 		}
 
 		final int minX = Math.max(0, x - (int) vision);
