@@ -4,12 +4,13 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Random;
 
 import javax.swing.JComponent;
 import javax.swing.Timer;
 
 @SuppressWarnings("serial")
-class Canvas extends JComponent {
+public class Canvas extends JComponent {
 	private final int width = 50;
 	private final int height = 50;
 	private final int gridOffsetX = 10;
@@ -38,6 +39,8 @@ class Canvas extends JComponent {
 	private Vision visionCache;
 	
 	private Tile[][] grid = new Tile[width][height];
+	private Pokemon[][] pokemonGrid = new Pokemon[width][height];
+	private static Random r = new Random();
 	
 	private boolean cornerCollides(double newPositionX, double newPositionY, double radius) {
 		double x = newPositionX + radius;
@@ -153,7 +156,55 @@ class Canvas extends JComponent {
 				}
 			}
 		}
+		createRandomPokemon(7, 7);
 		timer.start();
+	}
+	
+	private void createRandomPokemon(int x, int y) {
+		Tile tile = grid[x][y];
+		switch (r.nextInt(10)) {
+		case 1: 
+			if (x - 1 >= 0 && y + 1 < height) {
+				tile = grid[x - 1][y + 1];
+			}
+			break;
+		case 2:
+			if (y + 1 < height) {
+				tile = grid[x][y + 1];
+			}
+			break;
+		case 3:
+			if (x + 1 < width && y + 1 < height) {
+				tile = grid[x + 1][y + 1];
+			}
+			break;
+		case 4:
+			if (x - 1 >= 0) {
+				tile = grid[x - 1][y];
+			}
+			break;
+		case 6:
+			if (x + 1 >= 0) {
+				tile = grid[x + 1][y];
+			}
+			break;
+		case 7:
+			if (x - 1 >= 0 && y - 1 >= 0) {
+				tile = grid[x - 1][y - 1];
+			}
+			break;
+		case 8:
+			if (y - 1 >= 0) {
+				tile = grid[x][y - 1];
+			}
+			break;
+		case 9:
+			if (x + 1 < width && y - 1 >= 0) {
+				tile = grid[x + 1][y - 1];
+			}
+			break;
+		}
+		pokemonGrid[x][y] = new Pokemon(tile);
 	}
 	
 	@Override
@@ -199,7 +250,13 @@ class Canvas extends JComponent {
 					if (light > 0) {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
-						grid[i][j].render(g, px, py, light);
+						grid[i][j].render(g, px, py);
+						if (pokemonGrid[i][j] != null) {
+							pokemonGrid[i][j].render(g, px, py);
+						}
+						Color overlay = new Color(0, 0, 0, 255 - (int) (255 * light));
+						g.setColor(overlay);
+						g.fillRect(px, py, tileSize, tileSize);
 					}
 				}
 			}
@@ -228,6 +285,13 @@ class Canvas extends JComponent {
 		double dy = y - middleY;
 		targetX = positionX + dx / tileSize;
 		targetY = positionY + dy / tileSize;
+		int px = map(targetX);
+		int py = map(targetY);
+		if (px >= 0 && py >= 0 && px < width && py < height) {
+			if (pokemonGrid[px][py] != null) {
+				System.err.println("POKEMON");
+			}
+		}
 		System.err.println("Targeting " + targetX + ", " + targetY);
 	}
 	
