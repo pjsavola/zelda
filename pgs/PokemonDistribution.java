@@ -19,9 +19,6 @@ public enum PokemonDistribution {
 				pokemonArray[k] = kinds[i];
 			}
 		}
-		if (k != 100) {
-			throw new RuntimeException("Invalid input for PokemonDistribution");
-		}
 	}
 	
 	public PokemonKind getRandomPokemonKind() {

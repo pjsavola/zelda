@@ -9,13 +9,13 @@ import javax.imageio.ImageIO;
 
 public enum Tile {
 	
-	WATER("Water", "water.png", 0, 0.0f, PokemonDistribution.GRASS),
-	GRASS("Grass", "grass.png", 4.0f, 0.0f, PokemonDistribution.GRASS),
-	FOREST("Forest", "forest.png", 2.0f, 0.1f, PokemonDistribution.GRASS),
-	MOUNTAIN("Mountain", "mountain3.png", 1.0f, 0.2f, PokemonDistribution.GRASS),
-	WALL("Wall", "red_brick_wall.png", 0, 1.0f, PokemonDistribution.GRASS),
-	ROAD("Road", "road.png", 8.0f, 0.0f, PokemonDistribution.GRASS),
-	HILL("Hill", "hills.png", 2.0f, 0.05f, PokemonDistribution.GRASS);
+	WATER("Water", 0, 0.0f, PokemonDistribution.GRASS),
+	GRASS("Grass", 4.0f, 0.0f, PokemonDistribution.GRASS),
+	FOREST("Forest", 2.0f, 0.1f, PokemonDistribution.GRASS),
+	MOUNTAIN("Mountains", 1.0f, 0.2f, PokemonDistribution.GRASS),
+	WALL("Red wall", 0, 1.0f, PokemonDistribution.GRASS),
+	ROAD("Road", 8.0f, 0.0f, PokemonDistribution.GRASS),
+	HILL("Hills", 2.0f, 0.05f, PokemonDistribution.GRASS);
 
 	public static int tileSize = 16;
 
@@ -26,19 +26,10 @@ public enum Tile {
 	private BufferedImage image;
 	private final PokemonDistribution distribution;
 	
-	private Tile(String name, Color color, float velocity, float opacity, PokemonDistribution distribution) {
-		this.name = name;
-		this.color = color;
-		this.image = null;
-		this.velocity = velocity;
-		this.opacity = opacity;
-		this.distribution = distribution;
-	}
-	
-	private Tile(String name, String file, float velocity, float opacity, PokemonDistribution distribution) {
+	private Tile(String name, float velocity, float opacity, PokemonDistribution distribution) {
 		this.name = name;
 		try {
-			this.image = ImageIO.read(new File(file));
+			this.image = ImageIO.read(new File("images/terrain/" + name + ".png"));
 		} catch (IOException e) {
 			this.color = Color.GRAY;
 		}
