@@ -308,6 +308,9 @@ public class Canvas extends JComponent {
 			Pokemon p = pokemonGrid[px][py];
 			if (p != null && visionCache != null &&
 				p.isVisible(visionCache.getLightness(px, py))) {
+				// Stop moving
+				this.targetX = null;
+				this.targetY = null;
 				trainer.capture(this, p, false);
 				trainer.addCaptureData(p, new CaptureData(p.getStatus(), px, py, time));
 				if (p.getStatus() != CaptureResult.FREE) {

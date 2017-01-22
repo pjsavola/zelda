@@ -14,11 +14,20 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 public class Trainer {
+
+	private static final int[] expRequired = {
+		1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 10000, 10000, 10000,
+		15000, 20000, 20000, 20000, 25000, 25000, 50000, 75000, 100000, 125000, 150000,
+		190000, 200000, 250000, 300000, 350000, 500000, 500000, 750000, 1000000,
+		1250000, 1500000, 2000000, 2500000, 3000000, 5000000};
+	
 	private Map<CatchItem, Integer> catchItemCounts = new HashMap<>();
 	private Map<HealItem, Integer> healItemCounts = new HashMap<>();
 	private List<Pokemon> pokemonStorage = new ArrayList<>();
 	private Map<Pokemon, CaptureData> captureData = new HashMap<>();
 	private int level = 1;
+	private int exp = 0;
+	private int cumulativeExp = 0;
 	
 	public Trainer() {
 		for (CatchItem item : CatchItem.values()) {
@@ -82,6 +91,7 @@ public class Trainer {
 						JOptionPane.showMessageDialog(dialog, p.getName() + " caught!");
 						dialog.dispose();
 						pokemonStorage.add(p);
+						gainXp(parent, 100); // tweak?
 						break;
 					case FREE:
 						JOptionPane.showMessageDialog(dialog, "Broke free!");
@@ -110,5 +120,15 @@ public class Trainer {
 	
 	public int getLevel() {
 		return level;
+	}
+	
+	private void gainXp(Canvas parent, int xp) {
+		cumulativeExp += xp;
+		exp += xp;
+		while (level <= expRequired.length && exp >= expRequired[level - 1]) {
+			exp -= expRequired[level - 1];
+			level++;
+			JOptionPane.showMessageDialog(parent, "Level up: " + level);
+		}
 	}
 }
