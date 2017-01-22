@@ -11,7 +11,7 @@ public class Simulator {
 	public static void main(String[] args) {
 		JFrame frame = new JFrame("PGS");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setBounds(100, 100, 500, 500);
+		frame.setBounds(100, 100, 480, 640);
 		final Canvas canvas = new Canvas();
 		frame.setContentPane(canvas);
 		frame.addKeyListener(new KeyListener() {

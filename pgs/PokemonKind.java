@@ -13,7 +13,12 @@ import javax.swing.ImageIcon;
 
 public enum PokemonKind {
 
-	PIDGEY("Pidgey", 0.5f, 0.4, 0.2, 80, 85, 76, PokemonType.NORMAL, PokemonType.FLYING);
+	DRAGONITE("Dragonite", 0.5f, 0.04, 0.05, 182, 263, 201, null, PokemonType.DRAGON, PokemonType.FLYING),
+	DRAGONAIR("Dragonair", 0.4f, 0.08, 0.06, 122, 163, 138, DRAGONITE, PokemonType.DRAGON),
+	DRATINI("Dratini", 0.3f, 0.32, 0.09, 82, 119, 94, DRAGONAIR, PokemonType.DRAGON),
+	PIDGEOT("Pidgeot", 0.3f, 0.1, 0.06, 166, 166, 157, null, PokemonType.NORMAL, PokemonType.FLYING),
+	PIDGEOTTO("Pidgeotto", 0.2f, 0.2, 0.09, 126, 117, 108, PIDGEOT, PokemonType.NORMAL, PokemonType.FLYING),
+	PIDGEY("Pidgey", 0.1f, 0.4, 0.2, 80, 85, 76, PIDGEOTTO, PokemonType.NORMAL, PokemonType.FLYING);
 	
 	private final float visibilityThreshold;
 	private final double basicCaptureRate;
@@ -21,12 +26,13 @@ public enum PokemonKind {
 	private final int baseStamina;
 	private final int baseAttack;
 	private final int baseDefence;
+	private final PokemonKind evolvesTo;
 	private final List<PokemonType> types;
 	private final Image image;
 	private final Icon icon;
 	private final String name;
 	
-	private PokemonKind(String name, float visibilityThreshold, double bcr, double fr, int bs, int ba, int bd, PokemonType ... types) {
+	private PokemonKind(String name, float visibilityThreshold, double bcr, double fr, int bs, int ba, int bd, PokemonKind evolvesTo, PokemonType ... types) {
 		this.name = name;
 		this.visibilityThreshold = visibilityThreshold;
 		this.basicCaptureRate = bcr;
@@ -34,6 +40,7 @@ public enum PokemonKind {
 		this.baseStamina = bs;
 		this.baseAttack = ba;
 		this.baseDefence = bd;
+		this.evolvesTo = evolvesTo;
 		this.types = Arrays.asList(types);
 		try {
 			this.image = ImageIO.read(new File("images/pokemon/" + name + ".png"));

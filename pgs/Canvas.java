@@ -15,9 +15,9 @@ import javax.swing.Timer;
 public class Canvas extends JComponent {
 	private final int width = 50;
 	private final int height = 50;
-	private final int gridOffsetX = 10;
+	private final int gridOffsetX = 8;
 	private final int gridOffsetY = 10;
-	private final int gridSize = 23;
+	private final int gridSize = 29;
 	private final int tileSize = Tile.tileSize;
 	private final int playerSize = 11;
 	private final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
@@ -31,7 +31,7 @@ public class Canvas extends JComponent {
 	private double positionX = 5.0;
 	private double positionY = 5.0;
 
-	private float vision = 11.0f;
+	private float vision = 15.0f;
 	
 	private Double targetX;
 	private Double targetY;
@@ -242,7 +242,7 @@ public class Canvas extends JComponent {
 	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.BLACK);
-		g.fillRect(0, 0, 500, 500);
+		g.fillRect(0, 0, 480, 640);
 
 		final int x = map(positionX);
 		final int y = map(positionY);
@@ -251,6 +251,8 @@ public class Canvas extends JComponent {
 		double t = TimeUtil.getHoursFromMidnight(time);
 		if (t < 6) {
 			vision += t - 6;
+		}
+		if (visionCache != null && visionCache.getRadius() != vision) {
 			visionCache = null;
 		}
 
@@ -264,7 +266,6 @@ public class Canvas extends JComponent {
 			visionCache = new Vision(minX, x, maxX, minY, y, maxY, grid, vision);
 			visionCache.calculateFOV();
 		}
-		
 		
 		// Paint terrain
 		for (int i = minX; i < maxX; i++) {
@@ -293,7 +294,7 @@ public class Canvas extends JComponent {
 		g.setColor(Color.RED);
 		g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
 		
-		g.drawString(TimeUtil.timeToString(time), 400, 400);
+		g.drawString(TimeUtil.timeToString(time), 220, 15);
 	}
 	
 	public void click(int x, int y) {

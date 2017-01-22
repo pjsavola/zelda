@@ -45,6 +45,10 @@ public class Vision {
 		return lightMap[x - minX][y - minY];
 	}
 	
+	public float getRadius() {
+		return radius;
+	}
+	
 	private static float radius(int dx, int dy) {
 		return (float) Math.hypot(dx, dy);
 	}

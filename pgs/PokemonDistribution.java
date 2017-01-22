@@ -4,7 +4,10 @@ import java.util.Random;
 
 public enum PokemonDistribution {
 
-	GRASS(new PokemonKind[] {PokemonKind.PIDGEY}, new int[] {100});
+	GRASS(new PokemonKind[] {
+			PokemonKind.PIDGEY, PokemonKind.PIDGEOTTO, PokemonKind.PIDGEOT,
+			PokemonKind.DRATINI, PokemonKind.DRAGONAIR, PokemonKind.DRAGONITE},
+			new int[] {30, 20, 10, 20, 12, 8});
 
 	private static Random r = new Random();
 	private PokemonKind[] pokemonArray = new PokemonKind[100];

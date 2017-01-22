@@ -23,7 +23,8 @@ public abstract class TimeUtil {
 		long hours = mins / 60;
 		mins = mins % 60;
 		long h = (hours + 12) % 24;
-		String extra0 = mins < 10 ? "0" : "";
-		return h + ":" + extra0 + mins;
+		String extra0 = h < 10 ? "0" : "";
+		String extra1 = mins < 10 ? "0" : "";
+		return extra0 + h + ":" + extra1 + mins;
 	}
 }
