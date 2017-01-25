@@ -4,17 +4,21 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 import javax.swing.Timer;
 
 @SuppressWarnings("serial")
 public class Canvas extends JComponent {
-	private final int width = 50;
-	private final int height = 50;
+	private int width = 50;
+	private int height = 50;
 	private final int gridOffsetX = 8;
 	private final int gridOffsetY = 10;
 	private final int gridSize = 29;
@@ -43,9 +47,9 @@ public class Canvas extends JComponent {
 	
 	private Vision visionCache;
 	
-	private Tile[][] grid = new Tile[width][height];
-	private Pokemon[][] pokemonGrid = new Pokemon[width][height];
-	private List<DespawnData> despawnData= new ArrayList<>();
+	private Tile[][] grid;
+	private Pokemon[][] pokemonGrid;
+	private List<DespawnData> despawnData = new ArrayList<>();
 	private static Random r = new Random();
 	
 	private boolean cornerCollides(double newPositionX, double newPositionY, double radius) {
@@ -166,6 +170,40 @@ public class Canvas extends JComponent {
 	}
 	
 	public Canvas() {
+		try {
+			BufferedImage image = ImageIO.read(new File("images/map.png"));
+			width = image.getWidth();
+			height = image.getHeight();
+			grid = new Tile[width][height];
+			pokemonGrid = new Pokemon[width][height];
+			for (int i = 0; i < width; i++) {
+				for (int j = 0; j < height; j++) {
+					int pixel = image.getRGB(i, j);
+					//int alpha = (pixel >> 24) & 0xff;
+				    //int red = (pixel >> 16) & 0xff;
+				    //int green = (pixel >> 8) & 0xff;
+				    //int blue = (pixel) & 0xff;
+				    final Tile tile;
+				    switch (pixel) {
+				    case 0xff0000ff:
+				    	tile = Tile.WATER;
+				    	break;
+				    case 0xff00ff00:
+				    	tile = Tile.GRASS;
+				    	break;
+				    default:
+				    	tile = Tile.WATER;
+				    	break;
+				    }
+				    grid[i][j] = tile;
+				}
+			}
+		    positionX = 300;
+		    positionY = 100;
+		} catch (IOException e) {
+			throw new RuntimeException("Map missing");
+		}
+		/*
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				if (i == 0 || i == width - 1 || j == 0 || j == height - 1 || (i == 1 && j == 1)) {
@@ -186,6 +224,7 @@ public class Canvas extends JComponent {
 				}
 			}
 		}
+		*/
 		timer.start();
 	}
 	

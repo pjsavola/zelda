@@ -15,7 +15,12 @@ public enum Tile {
 	MOUNTAIN("Mountains", 1.0f, 0.2f, PokemonDistribution.GRASS),
 	WALL("Red wall", 0, 1.0f, PokemonDistribution.GRASS),
 	ROAD("Road", 8.0f, 0.0f, PokemonDistribution.GRASS),
-	HILL("Hills", 2.0f, 0.05f, PokemonDistribution.GRASS);
+	HILL("Hills", 2.0f, 0.05f, PokemonDistribution.GRASS),
+	LAVA("Lava", 0, 0.0f, PokemonDistribution.GRASS),
+	SAND("Sand", 3.0f, 0.0f, PokemonDistribution.GRASS),
+	SNOW("Snow", 3.0f, 0.0f, PokemonDistribution.GRASS),
+	STONE_WALL("Stone wall", 0, 1.0f, PokemonDistribution.GRASS),
+	WOODEN_FLOOR("Wooden floor", 5.0f, 0.0f, PokemonDistribution.GRASS);
 
 	public static int tileSize = 16;
 
