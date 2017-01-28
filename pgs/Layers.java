@@ -5,33 +5,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Layers {
-	// TODO: Add LAVA
+
 	private static Terrain getThemeTerrain(Terrain terrain) {
 		if (terrain == null) {
 			return null;
 		}
-		switch (terrain) {
-		case WATER:
-			return Terrain.WATER;
-		case SAND:
-			return Terrain.SAND;
-		case SNOW:
-			return Terrain.SNOW;
-		case LAVA:
-			return Terrain.LAVA;
-		default:
-			return Terrain.GRASS;
-		}
+		return terrain.getTheme();
 	}
 	
 	private static boolean isHilly(Terrain terrain) {
-		return terrain == Terrain.HILLS ||
-			terrain == Terrain.MOUNTAINS ||
-			terrain == Terrain.HIGH_MOUNTAINS;
+		return terrain == Terrain.HILLS_GRASS ||
+			terrain == Terrain.MOUNTAINS_GRASS ||
+			terrain == Terrain.HIGH_MOUNTAINS_GRASS ||
+			terrain == Terrain.HILLS_SAND ||
+			terrain == Terrain.MOUNTAINS_SAND ||
+			terrain == Terrain.HIGH_MOUNTAINS_SAND ||
+			terrain == Terrain.HILLS_SNOW ||
+			terrain == Terrain.MOUNTAINS_SNOW ||
+			terrain == Terrain.HIGH_MOUNTAINS_SNOW;
 	}
 	
 	private static boolean isRoad(Terrain terrain) {
-		return terrain == Terrain.ROAD;
+		return terrain == Terrain.ROAD_GRASS ||
+			terrain == Terrain.ROAD_SAND ||
+			terrain == Terrain.ROAD_SNOW;
 	}
 	
 	// initializes based on numpad directions, and null at the edges
@@ -103,7 +100,9 @@ public abstract class Layers {
 		
 		// Add layer for theme terrain
 		Terrain t5 = getThemeTerrain(n[5]);
-		imageNames.add(t5.getName());
+		if (t5 != null) {
+			imageNames.add(t5.getName());
+		}
 		
 		// Add layer for actual image
 		if (isHilly(n[5])) {

@@ -200,16 +200,16 @@ public class Canvas extends JComponent {
 				    	break;
 				    case 0xff969696:
 				    case 0xffa0a0a0:
-				    	tile = Terrain.MOUNTAINS;
+				    	tile = Terrain.MOUNTAINS_GRASS;
 				    	break;
 				    case 0xffffff00:
 				    	tile = Terrain.SAND;
 				    	break;
 				    case 0xffa06400:
-				    	tile = Terrain.ROAD;
+				    	tile = Terrain.ROAD_GRASS;
 				    	break;
 				    case 0xff00a000:
-				    	tile = Terrain.FOREST;
+				    	tile = Terrain.FOREST_GRASS;
 				    	break;
 				    default:
 				    	tile = Terrain.WATER;
