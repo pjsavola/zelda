@@ -12,7 +12,7 @@ public class Vision {
 	final float[][] resistanceMap;
 	final float[][] lightMap;
 	
-	public Vision(int minX, int x, int maxX, int minY, int y, int maxY, Tile[][] grid, float radius) {
+	public Vision(int minX, int x, int maxX, int minY, int y, int maxY, Terrain[][] grid, float radius) {
 		this.minX = minX;
 		this.minY = minY;
 		startx = x - minX;

@@ -22,7 +22,7 @@ public class Canvas extends JComponent {
 	private final int gridOffsetX = 8;
 	private final int gridOffsetY = 10;
 	private final int gridSize = 29;
-	private final int tileSize = Tile.tileSize;
+	private final int tileSize = Terrain.tileSize;
 	private final int playerSize = 11;
 	private final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
 	private final int middleCornerY = gridOffsetY + gridSize / 2 * tileSize;
@@ -47,8 +47,9 @@ public class Canvas extends JComponent {
 	
 	private Vision visionCache;
 	
-	private Tile[][] grid;
+	private Terrain[][] grid;
 	private Pokemon[][] pokemonGrid;
+	private BufferedImage[][] imageGrid;
 	private List<DespawnData> despawnData = new ArrayList<>();
 	private static Random r = new Random();
 	
@@ -170,12 +171,15 @@ public class Canvas extends JComponent {
 	}
 	
 	public Canvas() {
+		
+		
 		try {
-			BufferedImage image = ImageIO.read(new File("images/map.png"));
+			BufferedImage image = ImageIO.read(new File("images/viljo.png"));
 			width = image.getWidth();
 			height = image.getHeight();
-			grid = new Tile[width][height];
+			grid = new Terrain[width][height];
 			pokemonGrid = new Pokemon[width][height];
+			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
 					int pixel = image.getRGB(i, j);
@@ -183,53 +187,96 @@ public class Canvas extends JComponent {
 				    //int red = (pixel >> 16) & 0xff;
 				    //int green = (pixel >> 8) & 0xff;
 				    //int blue = (pixel) & 0xff;
-				    final Tile tile;
+				    final Terrain tile;
 				    switch (pixel) {
 				    case 0xff0000ff:
-				    	tile = Tile.WATER;
+				    	tile = Terrain.WATER;
 				    	break;
 				    case 0xff00ff00:
-				    	tile = Tile.GRASS;
+				    	tile = Terrain.GRASS;
+				    	break;
+				    case 0xffff9600:
+				    	tile = Terrain.LAVA;
+				    	break;
+				    case 0xff969696:
+				    case 0xffa0a0a0:
+				    	tile = Terrain.MOUNTAINS;
+				    	break;
+				    case 0xffffff00:
+				    	tile = Terrain.SAND;
+				    	break;
+				    case 0xffa06400:
+				    	tile = Terrain.ROAD;
+				    	break;
+				    case 0xff00a000:
+				    	tile = Terrain.FOREST;
 				    	break;
 				    default:
-				    	tile = Tile.WATER;
+				    	tile = Terrain.WATER;
 				    	break;
 				    }
 				    grid[i][j] = tile;
 				}
 			}
-		    positionX = 300;
-		    positionY = 100;
+		    positionX = 50;
+		    positionY = 50;
 		} catch (IOException e) {
 			throw new RuntimeException("Map missing");
 		}
 		/*
+		grid = new Terrain[width][height];
+		pokemonGrid = new Pokemon[width][height];
+		layerGrid = new Layers[width][height];
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				if (i == 0 || i == width - 1 || j == 0 || j == height - 1 || (i == 1 && j == 1)) {
-					grid[i][j] = Tile.WATER;
+					grid[i][j] = Terrain.WATER;
 				} else if (Math.hypot(i - 20, j - 20) < 8) {
-					if (Math.hypot(i - 20, j - 20) < 5)
-						grid[i][j] = Tile.MOUNTAIN;
-					else
-						grid[i][j] = Tile.HILL;
+					if (Math.hypot(i - 20, j - 20) < 2)
+						grid[i][j] = Terrain.HIGH_MOUNTAINS;
+					else if (Math.hypot(i - 20, j - 20) < 5)
+						grid[i][j] = Terrain.MOUNTAINS;
+					else {
+						if (i > 0 && grid[i - 1][j] == Terrain.GRASS) {
+							grid[i][j] = Terrain.HILLS_R;
+						} else {
+							grid[i][j] = Terrain.HILLS;
+						}
+					}
 				} else if (i > 5 && i < 45 && j == 5) {
-					grid[i][j] = Tile.WALL;
+					grid[i][j] = Terrain.WALL;
 				} else if (i > 5 && i < 45 && j == 8) {
-					grid[i][j] = Tile.ROAD;
+					grid[i][j] = Terrain.ROAD;
 				} else if (Math.hypot(i - 40, j - 20) < 6) {
-					grid[i][j] = Tile.FOREST;
+					if (Math.hypot(i -40, j - 20) < 2)
+						grid[i][j] = Terrain.THICK_FOREST;
+					else if (Math.hypot(i - 40, j - 20) < 4)
+						grid[i][j] = Terrain.FOREST;
+					else if (Math.hypot(i - 40, j - 20) < 5)
+						grid[i][j] = Terrain.SPARSE_FOREST;
+					else
+						grid[i][j] = Terrain.BUSHES;
 				} else {
-					grid[i][j] = Tile.GRASS;
+					if (i > 0 && grid[i - 1][j] == Terrain.HILLS) {
+						grid[i][j] = Terrain.HILLS_L;
+					} else {
+						grid[i][j] = Terrain.GRASS;
+					}
 				}
 			}
 		}
 		*/
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				imageGrid[i][j] = Layers.createImage(grid, i, j);
+			}
+		}
+		
 		timer.start();
 	}
 	
 	private void createRandomPokemon(int x, int y) {
-		Tile tile = grid[x][y];
+		Terrain tile = grid[x][y];
 		switch (r.nextInt(10)) {
 		case 1: 
 			if (x - 1 >= 0 && y + 1 < height) {
@@ -317,7 +364,7 @@ public class Canvas extends JComponent {
 					if (light > 0) {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
-						grid[i][j].render(g, px, py);
+						g.drawImage(imageGrid[i][j], px, py, null);
 						if (pokemonGrid[i][j] != null && pokemonGrid[i][j].isVisible(light)) {
 							pokemonGrid[i][j].render(g, px, py);
 						}

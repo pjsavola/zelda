@@ -2,12 +2,9 @@ package pgs;
 
 import java.awt.Graphics;
 import java.awt.Image;
-import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 
@@ -42,12 +39,8 @@ public enum PokemonKind {
 		this.baseDefence = bd;
 		this.evolvesTo = evolvesTo;
 		this.types = Arrays.asList(types);
-		try {
-			this.image = ImageIO.read(new File("images/pokemon/" + name + ".png"));
-			this.icon = new ImageIcon("images/pokemon/" + name + "_large.png", name);
-		} catch (IOException e) {
-			throw new RuntimeException("Image for " + name + " is missing");
-		}
+		this.image = ImageCache.getImage("images/pokemon/" + name + ".png");
+		this.icon = new ImageIcon("images/pokemon/" + name + "_large.png", name);
 	}
 	
 	public float getVisibilityThreshold() {

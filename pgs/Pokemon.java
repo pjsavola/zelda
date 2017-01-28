@@ -102,7 +102,7 @@ public class Pokemon {
 
 	private static Random r = new Random();
 	
-	Pokemon(Tile tile, int level) {
+	Pokemon(Terrain tile, int level) {
 		kind = tile.getRandomPokemonKind();
 		attack = r.nextInt(16);
 		defence = r.nextInt(16);
