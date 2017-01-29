@@ -33,7 +33,9 @@ public abstract class Layers {
 	private static boolean isRoad(Terrain terrain) {
 		return terrain == Terrain.ROAD_GRASS ||
 			terrain == Terrain.ROAD_SAND ||
-			terrain == Terrain.ROAD_SNOW;
+			terrain == Terrain.ROAD_SNOW ||
+			terrain == Terrain.BRIDGE ||
+			terrain == Terrain.DOCKS;
 	}
 	
 	// initializes based on numpad directions, and null at the edges

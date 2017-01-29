@@ -53,22 +53,26 @@ public class Canvas extends JComponent {
 	private List<DespawnData> despawnData = new ArrayList<>();
 	private static Random r = new Random();
 	
+	private boolean collides(int x, int y) {
+		return x < 0 || x >= width || y < 0 || y >= height || grid[x][y].getVelocity() == 0;
+	}
+	
 	private boolean cornerCollides(double newPositionX, double newPositionY, double radius) {
 		double x = newPositionX + radius;
 		double y = newPositionY + radius;
-		if (grid[map(x)][map(y)].getVelocity() == 0) {
+		if (collides(map(x), map(y))) {
 			return true;
 		}
 		y = newPositionY - radius;
-		if (grid[map(x)][map(y)].getVelocity() == 0) {
+		if (collides(map(x), map(y))) {
 			return true;
 		}
 		x = newPositionX - radius;
-		if (grid[map(x)][map(y)].getVelocity() == 0) {
+		if (collides(map(x), map(y))) {
 			return true;
 		}
 		y = newPositionY + radius;
-		if (grid[map(x)][map(y)].getVelocity() == 0) {
+		if (collides(map(x), map(y))) {
 			return true;
 		}
 		return false;
@@ -167,14 +171,14 @@ public class Canvas extends JComponent {
 	});
 	
 	private static int map(double x) {
-		return (int) (x + 0.5);
+		return (int) Math.floor(x + 0.5);
 	}
 	
 	public Canvas() {
 		
 		
 		try {
-			BufferedImage image = ImageIO.read(new File("images/test.png"));
+			BufferedImage image = ImageIO.read(new File("images/world.png"));
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
@@ -182,7 +186,7 @@ public class Canvas extends JComponent {
 			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
-					int pixel = image.getRGB(i, j);
+					int pixel = image.getRGB(i, j) & 0x00ffffff;
 					//int alpha = (pixel >> 24) & 0xff;
 				    //int red = (pixel >> 16) & 0xff;
 				    //int green = (pixel >> 8) & 0xff;
@@ -196,7 +200,7 @@ public class Canvas extends JComponent {
 					}
 				}
 			}
-		    positionX = 50;
+		    positionX = 30;
 		    positionY = 50;
 		} catch (IOException e) {
 			throw new RuntimeException("Map missing");
@@ -312,8 +316,9 @@ public class Canvas extends JComponent {
 		}
 		
 		// Paint adventurer
-		g.setColor(Color.RED);
-		g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
+		//g.setColor(Color.RED);
+		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), middleOvalCornerX, middleOvalCornerY, null);
+		//g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
 		
 		g.drawString(TimeUtil.timeToString(time), 220, 15);
 	}
