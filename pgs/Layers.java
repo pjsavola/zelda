@@ -10,6 +10,11 @@ public abstract class Layers {
 		if (terrain == null) {
 			return null;
 		}
+		if (terrain == Terrain.WATER || terrain == Terrain.GRASS ||
+			terrain == Terrain.SAND || terrain == Terrain.SNOW ||
+			terrain == Terrain.LAVA) {
+			return terrain;
+		}
 		return terrain.getTheme();
 	}
 	
@@ -109,11 +114,11 @@ public abstract class Layers {
 			imageNames.add(getHillyImageName(n));
 		} else if (isRoad(n[5])) {
 			imageNames.add(getRoadImageName(n));
-		} else {
+		} else if (n[5] != t5) {
 			imageNames.add(n[5].getName());
 		}
 		
-		// Add layer(s) for corners if suitable
+		// Add layer(s) for smooth corners if suitable (theme changes)
 		Terrain t2 = getThemeTerrain(n[2]);
 		Terrain t4 = getThemeTerrain(n[4]);
 		Terrain t6 = getThemeTerrain(n[6]);

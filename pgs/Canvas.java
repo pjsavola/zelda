@@ -174,7 +174,7 @@ public class Canvas extends JComponent {
 		
 		
 		try {
-			BufferedImage image = ImageIO.read(new File("images/viljo.png"));
+			BufferedImage image = ImageIO.read(new File("images/test.png"));
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
@@ -187,35 +187,13 @@ public class Canvas extends JComponent {
 				    //int red = (pixel >> 16) & 0xff;
 				    //int green = (pixel >> 8) & 0xff;
 				    //int blue = (pixel) & 0xff;
-				    final Terrain tile;
-				    switch (pixel) {
-				    case 0xff0000ff:
-				    	tile = Terrain.WATER;
-				    	break;
-				    case 0xff00ff00:
-				    	tile = Terrain.GRASS;
-				    	break;
-				    case 0xffff9600:
-				    	tile = Terrain.LAVA;
-				    	break;
-				    case 0xff969696:
-				    case 0xffa0a0a0:
-				    	tile = Terrain.MOUNTAINS_GRASS;
-				    	break;
-				    case 0xffffff00:
-				    	tile = Terrain.SAND;
-				    	break;
-				    case 0xffa06400:
-				    	tile = Terrain.ROAD_GRASS;
-				    	break;
-				    case 0xff00a000:
-				    	tile = Terrain.FOREST_GRASS;
-				    	break;
-				    default:
-				    	tile = Terrain.WATER;
-				    	break;
-				    }
-				    grid[i][j] = tile;
+					grid[i][j] = Terrain.WATER;
+					for (Terrain t : Terrain.values()) {
+						if (pixel == t.getMask()) {
+							grid[i][j] = t;
+							break;
+						}
+					}
 				}
 			}
 		    positionX = 50;
@@ -223,49 +201,6 @@ public class Canvas extends JComponent {
 		} catch (IOException e) {
 			throw new RuntimeException("Map missing");
 		}
-		/*
-		grid = new Terrain[width][height];
-		pokemonGrid = new Pokemon[width][height];
-		layerGrid = new Layers[width][height];
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				if (i == 0 || i == width - 1 || j == 0 || j == height - 1 || (i == 1 && j == 1)) {
-					grid[i][j] = Terrain.WATER;
-				} else if (Math.hypot(i - 20, j - 20) < 8) {
-					if (Math.hypot(i - 20, j - 20) < 2)
-						grid[i][j] = Terrain.HIGH_MOUNTAINS;
-					else if (Math.hypot(i - 20, j - 20) < 5)
-						grid[i][j] = Terrain.MOUNTAINS;
-					else {
-						if (i > 0 && grid[i - 1][j] == Terrain.GRASS) {
-							grid[i][j] = Terrain.HILLS_R;
-						} else {
-							grid[i][j] = Terrain.HILLS;
-						}
-					}
-				} else if (i > 5 && i < 45 && j == 5) {
-					grid[i][j] = Terrain.WALL;
-				} else if (i > 5 && i < 45 && j == 8) {
-					grid[i][j] = Terrain.ROAD;
-				} else if (Math.hypot(i - 40, j - 20) < 6) {
-					if (Math.hypot(i -40, j - 20) < 2)
-						grid[i][j] = Terrain.THICK_FOREST;
-					else if (Math.hypot(i - 40, j - 20) < 4)
-						grid[i][j] = Terrain.FOREST;
-					else if (Math.hypot(i - 40, j - 20) < 5)
-						grid[i][j] = Terrain.SPARSE_FOREST;
-					else
-						grid[i][j] = Terrain.BUSHES;
-				} else {
-					if (i > 0 && grid[i - 1][j] == Terrain.HILLS) {
-						grid[i][j] = Terrain.HILLS_L;
-					} else {
-						grid[i][j] = Terrain.GRASS;
-					}
-				}
-			}
-		}
-		*/
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				imageGrid[i][j] = Layers.createImage(grid, i, j);
