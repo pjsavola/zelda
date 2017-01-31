@@ -5,7 +5,7 @@ import java.util.Random;
 
 import javax.swing.Icon;
 
-public class Pokemon {
+public class Pokemon implements Clickable {
 
 	private static double[] CPM = {
 			0.094,
@@ -98,18 +98,23 @@ public class Pokemon {
 	private final int defence;
 	private final int stamina;
 	private final int level;
+	private final int x;
+	private final int y;
 	private CaptureResult status = CaptureResult.FREE;
 
 	private static Random r = new Random();
 	
-	Pokemon(Terrain tile, int level) {
+	Pokemon(Terrain tile, int level, int x, int y) {
 		kind = tile.getRandomPokemonKind();
 		attack = r.nextInt(16);
 		defence = r.nextInt(16);
 		stamina = r.nextInt(16);
 		this.level = r.nextInt(level) + 1;
+		this.x = x;
+		this.y = y;
 	}
-	
+
+	@Override
 	public void render(Graphics g, int x, int y) {
 		kind.render(g, x, y);
 	}
@@ -164,5 +169,20 @@ public class Pokemon {
 	
 	public CaptureResult getStatus() {
 		return status;
+	}
+
+	@Override
+	public void click(Canvas parent, Trainer trainer, long time) {
+		trainer.capture(parent, this, false);
+		trainer.addCaptureData(this, new CaptureData(getStatus(), x, y, time));
+		if (getStatus() != CaptureResult.FREE) {
+			event(parent);
+		}
+	}
+
+	@Override
+	public void event(Canvas parent) {
+		parent.clear(x, y);
+		parent.repaint();
 	}
 }

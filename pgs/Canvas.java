@@ -7,8 +7,8 @@ import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Random;
 
 import javax.imageio.ImageIO;
@@ -48,9 +48,9 @@ public class Canvas extends JComponent {
 	private Vision visionCache;
 	
 	private Terrain[][] grid;
-	private Pokemon[][] pokemonGrid;
+	private Clickable[][] clickableGrid;
 	private BufferedImage[][] imageGrid;
-	private List<DespawnData> despawnData = new ArrayList<>();
+	private Deque<TimedEvent> eventQueue = new ArrayDeque<>();
 	private static Random r = new Random();
 	
 	private boolean collides(int x, int y) {
@@ -143,13 +143,9 @@ public class Canvas extends JComponent {
 				positionY = newPositionY;
 			}
 			
-			if (!despawnData.isEmpty()) {
-				while (despawnData.get(0).despawn(pokemonGrid, time)) {
-					despawnData.remove(0);
-					if (despawnData.isEmpty()) {
-						break;
-					}
-				}
+			while (!eventQueue.isEmpty() &&
+					eventQueue.peekFirst().happens(time)) {
+				eventQueue.removeFirst().trigger(Canvas.this);
 			}
 			
 			// Spawn new...
@@ -182,21 +178,28 @@ public class Canvas extends JComponent {
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
-			pokemonGrid = new Pokemon[width][height];
+			clickableGrid = new Clickable[width][height];
 			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
-					int pixel = image.getRGB(i, j) & 0x00ffffff;
+					int pixel = image.getRGB(i, j);
 					//int alpha = (pixel >> 24) & 0xff;
 				    //int red = (pixel >> 16) & 0xff;
 				    //int green = (pixel >> 8) & 0xff;
 				    //int blue = (pixel) & 0xff;
 					grid[i][j] = Terrain.WATER;
+					if (i == 32 && j == 46) {
+						System.err.println(Integer.toHexString(pixel));
+					}
 					for (Terrain t : Terrain.values()) {
-						if (pixel == t.getMask()) {
+						if ((pixel & 0x00ffffff) == t.getMask()) {
 							grid[i][j] = t;
 							break;
 						}
+					}
+					int alpha = (pixel >> 24) & 0xff;
+					if (alpha == 0x7f) {
+						clickableGrid[i][j] = new PokeStop();
 					}
 				}
 			}
@@ -258,9 +261,9 @@ public class Canvas extends JComponent {
 			}
 			break;
 		}
-		if (pokemonGrid[x][y] == null) {
-			pokemonGrid[x][y] = new Pokemon(tile, trainer.getLevel());
-			despawnData.add(new DespawnData(x, y, time));
+		if (clickableGrid[x][y] == null) {
+			clickableGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
+			addEvent(new TimedEvent(clickableGrid[x][y], time + 3600 * 5)); // 5 game hours
 		}
 	}
 	
@@ -304,8 +307,8 @@ public class Canvas extends JComponent {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
 						g.drawImage(imageGrid[i][j], px, py, null);
-						if (pokemonGrid[i][j] != null && pokemonGrid[i][j].isVisible(light)) {
-							pokemonGrid[i][j].render(g, px, py);
+						if (clickableGrid[i][j] != null && clickableGrid[i][j].isVisible(light)) {
+							clickableGrid[i][j].render(g, px, py);
 						}
 						Color overlay = new Color(0, 0, 0, 255 - (int) (255 * light));
 						g.setColor(overlay);
@@ -315,12 +318,11 @@ public class Canvas extends JComponent {
 			}
 		}
 		
-		// Paint adventurer
-		//g.setColor(Color.RED);
 		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), middleOvalCornerX, middleOvalCornerY, null);
-		//g.fillOval(middleOvalCornerX, middleOvalCornerY, playerSize, playerSize);
-		
+		g.setColor(Color.RED);
 		g.drawString(TimeUtil.timeToString(time), 220, 15);
+		String coordinates = "(" + map(positionX) + ", " + map(positionY) + ")";
+		g.drawString(coordinates, 100, 15);
 	}
 	
 	public void click(int x, int y) {
@@ -331,18 +333,13 @@ public class Canvas extends JComponent {
 		int px = map(targetX);
 		int py = map(targetY);
 		if (px >= 0 && py >= 0 && px < width && py < height) {
-			Pokemon p = pokemonGrid[px][py];
+			Clickable p = clickableGrid[px][py];
 			if (p != null && visionCache != null &&
 				p.isVisible(visionCache.getLightness(px, py))) {
 				// Stop moving
 				this.targetX = null;
 				this.targetY = null;
-				trainer.capture(this, p, false);
-				trainer.addCaptureData(p, new CaptureData(p.getStatus(), px, py, time));
-				if (p.getStatus() != CaptureResult.FREE) {
-					pokemonGrid[px][py] = null;
-					repaint();
-				}
+				p.click(this, trainer, time);
 				return;
 			}
 		}
@@ -351,7 +348,13 @@ public class Canvas extends JComponent {
 		System.err.println("Targeting: " + targetX + ", " + targetY);
 	}
 	
-
+	public void clear(int x, int y) {
+		clickableGrid[x][y] = null;
+	}
+	
+	public void addEvent(TimedEvent e) {
+		eventQueue.addLast(e);
+	}
 	
 	public void press() {
 		System.err.println("Current position: " + positionX + ", " + positionY);
