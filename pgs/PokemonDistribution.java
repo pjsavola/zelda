@@ -1,15 +1,13 @@
 package pgs;
 
-import java.util.Random;
 
-public enum PokemonDistribution {
+public enum PokemonDistribution {	
 
 	GRASS(new PokemonKind[] {
 			PokemonKind.PIDGEY, PokemonKind.PIDGEOTTO, PokemonKind.PIDGEOT,
 			PokemonKind.DRATINI, PokemonKind.DRAGONAIR, PokemonKind.DRAGONITE},
 			new int[] {30, 20, 10, 20, 12, 8});
 
-	private static Random r = new Random();
 	private PokemonKind[] pokemonArray = new PokemonKind[100];
 	
 	private PokemonDistribution(PokemonKind[] kinds, int[] likelihoods) {
@@ -25,6 +23,6 @@ public enum PokemonDistribution {
 	}
 	
 	public PokemonKind getRandomPokemonKind() {
-		return pokemonArray[r.nextInt(100)];
+		return pokemonArray[Randomizer.r.nextInt(100)];
 	}
 }

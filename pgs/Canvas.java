@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Random;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
@@ -51,7 +50,6 @@ public class Canvas extends JComponent {
 	private Clickable[][] clickableGrid;
 	private BufferedImage[][] imageGrid;
 	private Deque<TimedEvent> eventQueue = new ArrayDeque<>();
-	private static Random r = new Random();
 	
 	private boolean collides(int x, int y) {
 		return x < 0 || x >= width || y < 0 || y >= height || grid[x][y].getVelocity() == 0;
@@ -151,8 +149,8 @@ public class Canvas extends JComponent {
 			// Spawn new...
 			if (time - previousSpawn > 1800) {
 				previousSpawn = time;
-				int rad = r.nextInt(10) + 15;
-				double angle = r.nextDouble() * 2 * Math.PI;
+				int rad = Randomizer.r.nextInt(10) + 15;
+				double angle = Randomizer.r.nextDouble() * 2 * Math.PI;
 				double candX = positionX + rad * Math.cos(angle);
 				double candY = positionY + rad * Math.sin(angle);
 				int cx = map(candX);
@@ -219,7 +217,7 @@ public class Canvas extends JComponent {
 	
 	private void createRandomPokemon(int x, int y) {
 		Terrain tile = grid[x][y];
-		switch (r.nextInt(10)) {
+		switch (Randomizer.r.nextInt(10)) {
 		case 1: 
 			if (x - 1 >= 0 && y + 1 < height) {
 				tile = grid[x - 1][y + 1];
@@ -318,11 +316,16 @@ public class Canvas extends JComponent {
 			}
 		}
 		
+		// 220, 15 is ~middle
 		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), middleOvalCornerX, middleOvalCornerY, null);
 		g.setColor(Color.RED);
-		g.drawString(TimeUtil.timeToString(time), 220, 15);
-		String coordinates = "(" + map(positionX) + ", " + map(positionY) + ")";
-		g.drawString(coordinates, 100, 15);
+		g.drawString("Time: " + TimeUtil.timeToString(time), 150, 15);
+		String coordinates = "Location: " + map(positionX) + ", " + map(positionY);
+		g.drawString(coordinates, 15, 15);
+		String expNeeded = "Exp needed: " + trainer.getMissingExperience();
+		g.drawString(expNeeded, 250, 15);
+		String level = "Level: " + trainer.getLevel();
+		g.drawString(level, 420, 15);
 	}
 	
 	public void click(int x, int y) {

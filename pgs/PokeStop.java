@@ -10,6 +10,7 @@ public class PokeStop implements Clickable {
 	@Override
 	public void click(Canvas parent, Trainer trainer, long time) {
 		if (available) {
+			trainer.collect(parent, this);
 			parent.addEvent(new TimedEvent(this, time + 3600 * 10)); // 10 in game hours
 			available = false;
 			parent.repaint();

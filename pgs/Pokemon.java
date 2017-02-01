@@ -1,7 +1,6 @@
 package pgs;
 
 import java.awt.Graphics;
-import java.util.Random;
 
 import javax.swing.Icon;
 
@@ -102,14 +101,12 @@ public class Pokemon implements Clickable {
 	private final int y;
 	private CaptureResult status = CaptureResult.FREE;
 
-	private static Random r = new Random();
-	
 	Pokemon(Terrain tile, int level, int x, int y) {
 		kind = tile.getRandomPokemonKind();
-		attack = r.nextInt(16);
-		defence = r.nextInt(16);
-		stamina = r.nextInt(16);
-		this.level = r.nextInt(level) + 1;
+		attack = Randomizer.r.nextInt(16);
+		defence = Randomizer.r.nextInt(16);
+		stamina = Randomizer.r.nextInt(16);
+		this.level = Randomizer.r.nextInt(level) + 1;
 		this.x = x;
 		this.y = y;
 	}
@@ -157,11 +154,11 @@ public class Pokemon implements Clickable {
 		}
 		double bcr = kind.getBasicCaptureRate();
 		double fail = Math.pow(1 - 0.5 * bcr / getCPM(level), multiplier);
-		multiplier *= r.nextDouble() * 3.4;
+		multiplier *= Randomizer.r.nextDouble() * 3.4;
 		System.err.println("Failure chance: " + fail);
-		if (fail < r.nextDouble()) {
+		if (fail < Randomizer.r.nextDouble()) {
 			status = CaptureResult.CAPTURED;
-		} else if (r.nextDouble() < kind.getFleeRate()) {
+		} else if (Randomizer.r.nextDouble() < kind.getFleeRate()) {
 			status = CaptureResult.ESCAPED;
 		}
 		return status;

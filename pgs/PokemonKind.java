@@ -15,7 +15,10 @@ public enum PokemonKind {
 	DRATINI("Dratini", 0.3f, 0.32, 0.09, 82, 119, 94, DRAGONAIR, PokemonType.DRAGON),
 	PIDGEOT("Pidgeot", 0.3f, 0.1, 0.06, 166, 166, 157, null, PokemonType.NORMAL, PokemonType.FLYING),
 	PIDGEOTTO("Pidgeotto", 0.2f, 0.2, 0.09, 126, 117, 108, PIDGEOT, PokemonType.NORMAL, PokemonType.FLYING),
-	PIDGEY("Pidgey", 0.1f, 0.4, 0.2, 80, 85, 76, PIDGEOTTO, PokemonType.NORMAL, PokemonType.FLYING);
+	PIDGEY("Pidgey", 0.1f, 0.4, 0.2, 80, 85, 76, PIDGEOTTO, PokemonType.NORMAL, PokemonType.FLYING),
+	VENUSAUR("Venusaur", 0.5f, 0.04, 0.05, 160, 198, 198, null, PokemonType.GRASS, PokemonType.POISON),
+	IVYSAUR("Ivysaur", 0.35f, 0.08, 0.07, 120, 151, 151, VENUSAUR, PokemonType.GRASS, PokemonType.POISON),
+	BULBASAUR("Bulbasaur", 0.15f, 0.16, 0.1, 90, 118, 118, IVYSAUR, PokemonType.GRASS, PokemonType.POISON);
 	
 	private final float visibilityThreshold;
 	private final double basicCaptureRate;
