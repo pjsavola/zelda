@@ -3,7 +3,9 @@ package pgs;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -31,6 +33,7 @@ public enum PokemonKind {
 	private final Image image;
 	private final Icon icon;
 	private final String name;
+	private final Map<CaptureResult, Integer> captureResults = new HashMap<>();
 	
 	private PokemonKind(String name, float visibilityThreshold, double bcr, double fr, int bs, int ba, int bd, PokemonKind evolvesTo, PokemonType ... types) {
 		this.name = name;
@@ -44,6 +47,9 @@ public enum PokemonKind {
 		this.types = Arrays.asList(types);
 		this.image = ImageCache.getImage("images/pokemon/" + name + ".png");
 		this.icon = new ImageIcon("images/pokemon/" + name + "_large.png", name);
+		captureResults.put(CaptureResult.CAPTURED, 0);
+		captureResults.put(CaptureResult.ESCAPED, 0);
+		captureResults.put(CaptureResult.FREE, 0);
 	}
 	
 	public float getVisibilityThreshold() {
@@ -84,5 +90,20 @@ public enum PokemonKind {
 	
 	public int getBaseDefence() {
 		return baseDefence;
+	}
+	
+	public void addCaptureResult(CaptureResult result) {
+		captureResults.put(result, captureResults.get(result) + 1);
+	}
+	
+	public void removeCaptureResult(CaptureResult result) {
+		captureResults.put(result, captureResults.get(result) - 1);
+	}
+	
+	public String getCaptureResults() {
+		Integer captured = captureResults.get(CaptureResult.CAPTURED);
+		Integer escaped = captureResults.get(CaptureResult.ESCAPED);
+		Integer free = captureResults.get(CaptureResult.FREE);
+		return captured + "/" + escaped + "/" + free;
 	}
 }

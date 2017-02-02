@@ -100,6 +100,7 @@ public class Pokemon implements Clickable {
 	private final int x;
 	private final int y;
 	private CaptureResult status = CaptureResult.FREE;
+	private Long clickTime = null;
 
 	Pokemon(Terrain tile, int level, int x, int y) {
 		kind = tile.getRandomPokemonKind();
@@ -171,15 +172,27 @@ public class Pokemon implements Clickable {
 	@Override
 	public void click(Canvas parent, Trainer trainer, long time) {
 		trainer.capture(parent, this, false);
-		trainer.addCaptureData(this, new CaptureData(getStatus(), x, y, time));
-		if (getStatus() != CaptureResult.FREE) {
-			event(parent);
+		final CaptureResult result = getStatus();
+		if (clickTime == null) {
+			kind.addCaptureResult(result);
 		}
+		if (result != CaptureResult.FREE) {
+			event(parent);
+			if (clickTime != null) {
+				kind.removeCaptureResult(CaptureResult.FREE);
+				kind.addCaptureResult(result);
+			}
+		}
+		clickTime = time;
 	}
 
 	@Override
 	public void event(Canvas parent) {
 		parent.clear(x, y);
 		parent.repaint();
+	}
+	
+	public String getCaptureResults() {
+		return kind.getCaptureResults();
 	}
 }

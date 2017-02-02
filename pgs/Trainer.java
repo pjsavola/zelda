@@ -21,26 +21,38 @@ public class Trainer {
 		190000, 200000, 250000, 300000, 350000, 500000, 500000, 750000, 1000000,
 		1250000, 1500000, 2000000, 2500000, 3000000, 5000000};
 	
-	private Map<CatchItem, Integer> catchItemCounts = new HashMap<>();
-	private Map<HealItem, Integer> healItemCounts = new HashMap<>();
+	private Map<CatchItem, Integer> catchItemCounts;
+	private Map<HealItem, Integer> healItemCounts;
 	private List<Pokemon> pokemonStorage = new ArrayList<>();
 	private Map<Pokemon, CaptureData> captureData = new HashMap<>();
 	private Map<PokeStop, Integer> stopData = new HashMap<>();
 	private int level = 1;
 	private int exp = 0;
 	private int cumulativeExp = 0;
+
+	private static Map<CatchItem, Integer> initCatchItemMap() {
+		Map<CatchItem, Integer> m = new HashMap<>();
+		for (CatchItem item : CatchItem.values()) {
+			m.put(item, 0);
+		}
+		return m;
+	}
+
+	private static Map<HealItem, Integer> initHealItemMap() {
+		Map<HealItem, Integer> m = new HashMap<>();
+		for (HealItem item : HealItem.values()) {
+			m.put(item, 0);
+		}
+		return m;
+	}
 	
 	public Trainer() {
-		for (CatchItem item : CatchItem.values()) {
-			catchItemCounts.put(item, 0);
-		}
-		for (HealItem item : HealItem.values()) {
-			healItemCounts.put(item, 0);
-		}
+		catchItemCounts = initCatchItemMap();
+		healItemCounts = initHealItemMap();
 		gainItems(CatchItem.POKE_BALL, 25);
 	}
 	
-	public void capture(Canvas parent, final Pokemon p, final boolean razzberry) {
+	public void capture(final Canvas parent, final Pokemon p, final boolean razzberry) {
 		
 		// Create options for the dialog window
 		CatchItem[] options = CatchItem.values();
@@ -58,7 +70,7 @@ public class Trainer {
 
 		JOptionPane optionPane = new JOptionPane();
 	    optionPane.setIcon(p.getIcon());
-	    optionPane.setMessage("CP: " + p.getCombatPower());
+	    optionPane.setMessage("CP: " + p.getCombatPower() + "\n" + p.getCaptureResults());
 	    optionPane.setMessageType(JOptionPane.QUESTION_MESSAGE);
 	    optionPane.setOptions(new Object[] {"Flee"});
 	    
@@ -92,6 +104,8 @@ public class Trainer {
 						JOptionPane.showMessageDialog(dialog, p.getName() + " caught!");
 						dialog.dispose();
 						pokemonStorage.add(p);
+						parent.journal.add(new Journal.Entry(
+							p.getName() + " (" + p.getCombatPower() + ") captured!"));
 						gainXp(parent, 100); // tweak?
 						break;
 					case FREE:
@@ -102,6 +116,9 @@ public class Trainer {
 					case ESCAPED:
 						JOptionPane.showMessageDialog(dialog, "Broke free and escaped!");
 						dialog.dispose();
+						parent.journal.add(new Journal.Entry(
+								p.getName() + " (" + p.getCombatPower() + ") ran away!"));
+						gainXp(parent, 25);
 						break;
 					}
 				}
@@ -131,11 +148,13 @@ public class Trainer {
 	}
 	
 	private void gainXp(Canvas parent, int xp) {
+		parent.journal.amend(" + " + xp + " exp");
 		cumulativeExp += xp;
 		exp += xp;
 		while (level <= expRequired.length && exp >= expRequired[level - 1]) {
 			exp -= expRequired[level - 1];
 			levelUp();
+			parent.journal.add(new Journal.Entry("Level up: " + level));
 			JOptionPane.showMessageDialog(parent, "Level up: " + level);
 		}
 	}
@@ -304,7 +323,7 @@ public class Trainer {
 		healItemCounts.put(item, oldCount + count);
 	}
 	
-	private void gainRandomItems(int count) {
+	private static void createRandomItems(int count, int level, Map<CatchItem, Integer> m1, Map<HealItem, Integer> m2) {
 		while (count-- > 0) {
 			if (level >= 5 && Randomizer.r.nextInt(5) == 0) {
 				int bound = 2;
@@ -312,48 +331,32 @@ public class Trainer {
 				if (level >= 15) bound++; // hyper potion
 				if (level >= 25) bound++; // max potion
 				if (level >= 30) bound++; // max revive
+				HealItem item = null;
 				switch (Randomizer.r.nextInt(bound)) {
-				case 0:
-					gainItems(HealItem.POTION, 1);
-					break;
-				case 1:
-					gainItems(HealItem.REVIVE, 1);
-					break;
-				case 2:
-					gainItems(HealItem.SUPER_POTION, 1);
-					break;
-				case 3:
-					gainItems(HealItem.HYPER_POTION, 1);
-					break;
-				case 4:
-					gainItems(HealItem.MAX_POTION, 1);
-					break;
-				case 5:
-					gainItems(HealItem.MAX_REVIVE, 1);
-					break;
+				case 0: item = HealItem.POTION; break;
+				case 1: item = HealItem.REVIVE; break;
+				case 2: item = HealItem.SUPER_POTION; break;
+				case 3: item = HealItem.HYPER_POTION; break;
+				case 4: item = HealItem.MAX_POTION; break;
+				case 5: item = HealItem.MAX_REVIVE; break;
 				}
+				m2.put(item, m2.get(item) + 1);
 			} else {
 				int bound = 3;
 				if (level >= 8) bound++; // razzberry
 				if (level >= 12) bound += 2; // great ball
 				if (level >= 20) bound++; // ultra ball
+				CatchItem item = null;
 				switch (Randomizer.r.nextInt(bound)) {
 				case 0:
 				case 1:
-				case 2:
-					gainItems(CatchItem.POKE_BALL, 1);
-					break;
-				case 3:
-					gainItems(CatchItem.RAZZBERRY, 1);
-					break;
+				case 2: item = CatchItem.POKE_BALL; break;
+				case 3: item = CatchItem.RAZZBERRY; break;
 				case 4:
-				case 5:
-					gainItems(CatchItem.GREAT_BALL, 1);
-					break;
-				case 6:
-					gainItems(CatchItem.ULTRA_BALL, 1);
-					break;
+				case 5: item = CatchItem.GREAT_BALL; break;
+				case 6: item = CatchItem.ULTRA_BALL; break;
 				}
+				m1.put(item, m1.get(item) + 1);
 			}
 		}
 	}
@@ -363,7 +366,23 @@ public class Trainer {
 		if (visitCount == null) {
 			visitCount = 0;
 		}
-		gainRandomItems(Math.max(3, Randomizer.r.nextInt(7)));
+		Map<CatchItem, Integer> m1 = initCatchItemMap();
+		Map<HealItem, Integer> m2 = initHealItemMap();
+		createRandomItems(Math.max(3, Randomizer.r.nextInt(7)), level, m1, m2);
+		String text = "Received: ";
+		for (Map.Entry<CatchItem, Integer> e : m1.entrySet()) {
+			if (e.getValue() > 0) {
+				gainItems(e.getKey(), e.getValue());
+				text += e.getValue() + "x " + e.getKey().getName() + ", ";
+			}
+		}
+		for (Map.Entry<HealItem, Integer> e : m2.entrySet()) {
+			if (e.getValue() > 0) {
+				gainItems(e.getKey(), e.getValue());
+				text += e.getValue() + "x " + e.getKey().getName() + ", ";
+			}
+		}
+		parent.journal.add(new Journal.Entry(text.substring(0, text.length() - 2)));
 		gainXp(parent, Math.max(0, 50 - visitCount));
 		stopData.put(stop, ++visitCount);
 	}

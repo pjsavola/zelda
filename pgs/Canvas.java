@@ -19,7 +19,7 @@ public class Canvas extends JComponent {
 	private int width = 50;
 	private int height = 50;
 	private final int gridOffsetX = 8;
-	private final int gridOffsetY = 10;
+	private final int gridOffsetY = 30;
 	private final int gridSize = 29;
 	private final int tileSize = Terrain.tileSize;
 	private final int playerSize = 11;
@@ -43,6 +43,7 @@ public class Canvas extends JComponent {
 	private long previousSpawn = 0;
 
 	private Trainer trainer = new Trainer();
+	Journal journal = new Journal();
 	
 	private Vision visionCache;
 	
@@ -319,13 +320,23 @@ public class Canvas extends JComponent {
 		// 220, 15 is ~middle
 		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), middleOvalCornerX, middleOvalCornerY, null);
 		g.setColor(Color.RED);
-		g.drawString("Time: " + TimeUtil.timeToString(time), 150, 15);
-		String coordinates = "Location: " + map(positionX) + ", " + map(positionY);
-		g.drawString(coordinates, 15, 15);
+		
+		paintTime(g);
+		paintCoordinates(g);
 		String expNeeded = "Exp needed: " + trainer.getMissingExperience();
 		g.drawString(expNeeded, 250, 15);
 		String level = "Level: " + trainer.getLevel();
 		g.drawString(level, 420, 15);
+		journal.paint(g, 15, 500);
+	}
+
+	private void paintTime(Graphics g) {
+		g.drawString("Time: " + TimeUtil.timeToString(time), 150, 15);			
+	}
+	
+	private void paintCoordinates(Graphics g) {
+		String coordinates = "Location: " + map(positionX) + ", " + map(positionY);
+		g.drawString(coordinates, 15, 15);
 	}
 	
 	public void click(int x, int y) {
