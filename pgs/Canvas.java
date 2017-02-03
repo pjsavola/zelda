@@ -42,7 +42,7 @@ public class Canvas extends JComponent {
 	private Vision visionCache;
 	
 	private Terrain[][] grid;
-	private Renderable[][] thingGrid;
+	private Renderable[][] renderableGrid;
 	private BufferedImage[][] imageGrid;
 	
 	private boolean collides(int x, int y) {
@@ -147,14 +147,12 @@ public class Canvas extends JComponent {
 	}
 	
 	public Canvas() {
-		
-		
 		try {
 			BufferedImage image = ImageIO.read(new File("images/world.png"));
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
-			thingGrid = new Renderable[width][height];
+			renderableGrid = new Renderable[width][height];
 			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
@@ -175,7 +173,7 @@ public class Canvas extends JComponent {
 					}
 					int alpha = (pixel >> 24) & 0xff;
 					if (alpha == 0x7f) {
-						thingGrid[i][j] = new PokeStop();
+						renderableGrid[i][j] = new PokeStop();
 					}
 				}
 			}
@@ -189,72 +187,9 @@ public class Canvas extends JComponent {
 				imageGrid[i][j] = Layers.createImage(grid, i, j);
 			}
 		}
-		timer.addTimedEvent(new PokemonSpawn(), 0.5);
+		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
 	}
-	
-	public void spawnPokemon() {
-		int rad = Randomizer.r.nextInt(10) + 15;
-		double angle = Randomizer.r.nextDouble() * 2 * Math.PI;
-		double candX = positionX + rad * Math.cos(angle);
-		double candY = positionY + rad * Math.sin(angle);
-		int cx = map(candX);
-		int cy = map(candY);
-		if (cx >= 0 && cy >= 0 && cx < width && cy < height) {
-			createRandomPokemon(cx, cy);
-			System.err.println("Spawned at " + cx + ", " + cy);
-		}
-	}
-	
-	private void createRandomPokemon(int x, int y) {
-		Terrain tile = grid[x][y];
-		switch (Randomizer.r.nextInt(10)) {
-		case 1: 
-			if (x - 1 >= 0 && y + 1 < height) {
-				tile = grid[x - 1][y + 1];
-			}
-			break;
-		case 2:
-			if (y + 1 < height) {
-				tile = grid[x][y + 1];
-			}
-			break;
-		case 3:
-			if (x + 1 < width && y + 1 < height) {
-				tile = grid[x + 1][y + 1];
-			}
-			break;
-		case 4:
-			if (x - 1 >= 0) {
-				tile = grid[x - 1][y];
-			}
-			break;
-		case 6:
-			if (x + 1 < width) {
-				tile = grid[x + 1][y];
-			}
-			break;
-		case 7:
-			if (x - 1 >= 0 && y - 1 >= 0) {
-				tile = grid[x - 1][y - 1];
-			}
-			break;
-		case 8:
-			if (y - 1 >= 0) {
-				tile = grid[x][y - 1];
-			}
-			break;
-		case 9:
-			if (x + 1 < width && y - 1 >= 0) {
-				tile = grid[x + 1][y - 1];
-			}
-			break;
-		}
-		if (thingGrid[x][y] == null) {
-			thingGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
-			timer.addTimedEvent(thingGrid[x][y], 5);
-		}
-	}
-	
+
 	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.BLACK);
@@ -295,8 +230,8 @@ public class Canvas extends JComponent {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
 						g.drawImage(imageGrid[i][j], px, py, null);
-						if (thingGrid[i][j] != null && thingGrid[i][j].isVisible(light)) {
-							thingGrid[i][j].render(g, px, py);
+						if (renderableGrid[i][j] != null && renderableGrid[i][j].isVisible(light)) {
+							renderableGrid[i][j].render(g, px, py);
 						}
 						Color overlay = new Color(0, 0, 0, 255 - (int) (255 * light));
 						g.setColor(overlay);
@@ -332,7 +267,7 @@ public class Canvas extends JComponent {
 		int px = map(targetX);
 		int py = map(targetY);
 		if (px >= 0 && py >= 0 && px < width && py < height) {
-			Renderable p = thingGrid[px][py];
+			Renderable p = renderableGrid[px][py];
 			if (p != null && visionCache != null &&
 				p.isVisible(visionCache.getLightness(px, py))) {
 				// Stop moving
@@ -348,7 +283,7 @@ public class Canvas extends JComponent {
 	}
 	
 	public void clear(int x, int y) {
-		thingGrid[x][y] = null;
+		renderableGrid[x][y] = null;
 	}
 	
 	public void press() {
@@ -359,11 +294,74 @@ public class Canvas extends JComponent {
 		return timer;
 	}
 	
-	public class PokemonSpawn implements Targetable {
+	public class PokemonSpawnEvent implements Targetable {
 		@Override
 		public void event(Canvas canvas) {
-			canvas.spawnPokemon();
-			timer.addTimedEvent(new PokemonSpawn(), 0.5);
+			spawnPokemon();
+			timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
+		}
+
+		private void spawnPokemon() {
+			int rad = Randomizer.r.nextInt(10) + 15;
+			double angle = Randomizer.r.nextDouble() * 2 * Math.PI;
+			double candX = positionX + rad * Math.cos(angle);
+			double candY = positionY + rad * Math.sin(angle);
+			int cx = map(candX);
+			int cy = map(candY);
+			if (cx >= 0 && cy >= 0 && cx < width && cy < height) {
+				createRandomPokemon(cx, cy);
+				System.err.println("Spawned at " + cx + ", " + cy);
+			}
+		}
+
+		private void createRandomPokemon(int x, int y) {
+			Terrain tile = grid[x][y];
+			switch (Randomizer.r.nextInt(10)) {
+			case 1: 
+				if (x - 1 >= 0 && y + 1 < height) {
+					tile = grid[x - 1][y + 1];
+				}
+				break;
+			case 2:
+				if (y + 1 < height) {
+					tile = grid[x][y + 1];
+				}
+				break;
+			case 3:
+				if (x + 1 < width && y + 1 < height) {
+					tile = grid[x + 1][y + 1];
+				}
+				break;
+			case 4:
+				if (x - 1 >= 0) {
+					tile = grid[x - 1][y];
+				}
+				break;
+			case 6:
+				if (x + 1 < width) {
+					tile = grid[x + 1][y];
+				}
+				break;
+			case 7:
+				if (x - 1 >= 0 && y - 1 >= 0) {
+					tile = grid[x - 1][y - 1];
+				}
+				break;
+			case 8:
+				if (y - 1 >= 0) {
+					tile = grid[x][y - 1];
+				}
+				break;
+			case 9:
+				if (x + 1 < width && y - 1 >= 0) {
+					tile = grid[x + 1][y - 1];
+				}
+				break;
+			}
+			if (renderableGrid[x][y] == null) {
+				renderableGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
+				timer.addTimedEvent(renderableGrid[x][y], 5);
+			}
 		}
 	}
 }

@@ -3,14 +3,14 @@ package pgs;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Timer;
 
 public class GameTimer {
 	private static final int refreshRate = 20;
-	private final Deque<TimedEvent> eventQueue = new ArrayDeque<TimedEvent>();
+	private final List<TimedEvent> eventQueue = new ArrayList<>();
 	private final Canvas game;
 	private final Timer timer;
 	private long time = 0;
@@ -31,8 +31,17 @@ public class GameTimer {
 	}
 
 	// After delay number of game hours, invoke event-method for target.
+	// Keep the event queue ordered based on time.
 	public void addTimedEvent(Targetable target, double delay) {
-		eventQueue.addLast(new TimedEvent(target, time + (long) (delay * 3600)));
+		final long eventTime = time + (long) (delay * 3600);
+		final TimedEvent event = new TimedEvent(target, eventTime);
+		for (int i = 0; i < eventQueue.size(); i++) {
+			if (!eventQueue.get(i).happens(eventTime)) {
+				eventQueue.add(i, event);
+				return;
+			}
+		}
+		eventQueue.add(event);
 	}
 
 	// Return the game time in milliseconds.
@@ -71,8 +80,8 @@ public class GameTimer {
 		}
 
 		// Check for any timed events and trigger them
-		while (!eventQueue.isEmpty() && eventQueue.peekFirst().happens(time)) {
-			eventQueue.removeFirst().trigger(game);
+		while (!eventQueue.isEmpty() && eventQueue.get(0).happens(time)) {
+			eventQueue.remove(0).trigger(game);
 		}
 
 		game.repaint(Simulator.mainArea);
