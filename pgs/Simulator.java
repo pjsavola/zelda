@@ -1,4 +1,5 @@
 package pgs;
+import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
@@ -47,4 +48,10 @@ public class Simulator {
 		frame.requestFocus();
 		frame.setVisible(true);
 	}
+	
+	public static final Rectangle headerArea = new Rectangle(0, 0, 480, 25);
+	public static final Rectangle mainArea = new Rectangle(0, 25, 480, 480);
+	public static final Rectangle footerArea = new Rectangle(0, 505, 480, 135);
+	
+	public static final Rectangle timeArea = new Rectangle(130, 0, 100, 15);
 }

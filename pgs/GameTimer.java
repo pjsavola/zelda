@@ -1,7 +1,6 @@
 package pgs;
 
 import java.awt.Graphics;
-import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayDeque;
@@ -14,8 +13,6 @@ public class GameTimer {
 	private final Deque<TimedEvent> eventQueue = new ArrayDeque<TimedEvent>();
 	private final Canvas game;
 	private final Timer timer;
-	private final Rectangle timeArea = new Rectangle(108, 0, 15, 15);
-	private final Rectangle mainArea = new Rectangle(0, 25, 480, 480);
 	private long time = 0;
 	private String timeString = timeToString(time);
 
@@ -59,16 +56,18 @@ public class GameTimer {
 	}
 
 	public void paint(Graphics g) {
-		g.drawString("Time: " + timeString, timeArea.x, timeArea.y + 15);
+		g.drawString("Time: " + timeString, Simulator.timeArea.x, Simulator.timeArea.y + 15);
 	}
 
 	// Advance game time, trigger any events and trigger repaint for required areas.
 	private void advanceTime(double spentTime) {
 		time += spentTime * refreshRate;
+
+		// Update the time string and repaint it if needed
 		final String newTimeString = timeToString(time);
 		if (!timeString.equals(newTimeString)) {
 			timeString = newTimeString;
-			game.repaint(timeArea);
+			game.repaint(Simulator.headerArea);
 		}
 
 		// Check for any timed events and trigger them
@@ -76,7 +75,7 @@ public class GameTimer {
 			eventQueue.removeFirst().trigger(game);
 		}
 
-		game.repaint(mainArea);
+		game.repaint(Simulator.mainArea);
 	}
 
 	private static String timeToString(long time) {
@@ -92,8 +91,8 @@ public class GameTimer {
 	}
 
 	private static class TimedEvent {
-		Targetable target;
-		long time;
+		final Targetable target;
+		final long time;
 
 		public TimedEvent(Targetable target, long time) {
 			this.target = target;
