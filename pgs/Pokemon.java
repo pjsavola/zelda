@@ -4,7 +4,7 @@ import java.awt.Graphics;
 
 import javax.swing.Icon;
 
-public class Pokemon implements Clickable {
+public class Pokemon implements Renderable {
 
 	private static double[] CPM = {
 			0.094,
@@ -170,7 +170,7 @@ public class Pokemon implements Clickable {
 	}
 
 	@Override
-	public void click(Canvas parent, Trainer trainer, long time) {
+	public void click(Canvas parent, Trainer trainer) {
 		trainer.capture(parent, this, false);
 		final CaptureResult result = getStatus();
 		if (clickTime == null) {
@@ -183,7 +183,7 @@ public class Pokemon implements Clickable {
 				kind.addCaptureResult(result);
 			}
 		}
-		clickTime = time;
+		clickTime = parent.getTimer().getTime();
 	}
 
 	@Override

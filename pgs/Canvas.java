@@ -2,17 +2,13 @@ package pgs;
 
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
-import javax.swing.Timer;
 
 @SuppressWarnings("serial")
 public class Canvas extends JComponent {
@@ -38,9 +34,7 @@ public class Canvas extends JComponent {
 	
 	private Double targetX;
 	private Double targetY;
-	
-	private long time = 0;
-	private long previousSpawn = 0;
+
 
 	private Trainer trainer = new Trainer();
 	Journal journal = new Journal();
@@ -48,9 +42,8 @@ public class Canvas extends JComponent {
 	private Vision visionCache;
 	
 	private Terrain[][] grid;
-	private Clickable[][] clickableGrid;
+	private Renderable[][] thingGrid;
 	private BufferedImage[][] imageGrid;
-	private Deque<TimedEvent> eventQueue = new ArrayDeque<>();
 	
 	private boolean collides(int x, int y) {
 		return x < 0 || x >= width || y < 0 || y >= height || grid[x][y].getVelocity() == 0;
@@ -77,94 +70,78 @@ public class Canvas extends JComponent {
 		return false;
 	}
 	
-	private final Timer timer = new Timer(refreshRate, new ActionListener() {
-		@Override
-		public void actionPerformed(ActionEvent arg0) {
-			
-			// Target set at all?
-			if (targetX == null || targetY == null) {
-				return;
-			}
-			
-			double dx = targetX - positionX;
-			double dy = targetY - positionY;
-			double hyp = Math.hypot(dx, dy);
-			double directionX = dx / hyp;
-			double directionY = dy / hyp;
-			float velocity = grid[map(positionX)][map(positionY)].getVelocity();
-			
-			double newPositionX = positionX + velocity * directionX * refreshRate / 1000.0;
-			double newPositionY = positionY + velocity * directionY * refreshRate / 1000.0;
-
-			boolean moveX = true;
-			boolean moveY = true;
-			double radius = 0.5 * playerSize / tileSize;
-			boolean collision = cornerCollides(newPositionX, newPositionY, radius);
-			if (collision) {
-				moveY = !cornerCollides(positionX, newPositionY, radius);
-				moveX = !cornerCollides(newPositionX, positionY, radius);
-				if (moveX && moveY) {
-					// Both directions separately are ok, but combined
-					// not ok, let's stop instead of guessing which
-					// direction would be better.
-					return;
-				}
-				if (!moveY) {
-					newPositionY = positionY;
-				}
-				if (!moveX) {
-					newPositionX = positionX;
-				}
-			}
-
-			double distance = Math.hypot(targetX - positionX, targetY - positionY);
-			double newDistance = Math.hypot(targetX - newPositionX, targetY - newPositionY);
-
-			// Not getting any closer, stop moving
-			if (newDistance > distance) {
-				targetX = null;
-				targetY = null;
-				return;
-			}
-
-			if (moveX) {
-				time += refreshRate * Math.abs(directionX);
-				if (map(positionX) != map(newPositionX)) {
-					visionCache = null;
-				}
-				positionX = newPositionX;
-			}
-			if (moveY) {
-				time += refreshRate * Math.abs(directionY);
-				if (map(positionY) != map(newPositionY)) {
-					visionCache = null;
-				}
-				positionY = newPositionY;
-			}
-			
-			while (!eventQueue.isEmpty() &&
-					eventQueue.peekFirst().happens(time)) {
-				eventQueue.removeFirst().trigger(Canvas.this);
-			}
-			
-			// Spawn new...
-			if (time - previousSpawn > 1800) {
-				previousSpawn = time;
-				int rad = Randomizer.r.nextInt(10) + 15;
-				double angle = Randomizer.r.nextDouble() * 2 * Math.PI;
-				double candX = positionX + rad * Math.cos(angle);
-				double candY = positionY + rad * Math.sin(angle);
-				int cx = map(candX);
-				int cy = map(candY);
-				if (cx >= 0 && cy >= 0 && cx < width && cy < height) {
-					createRandomPokemon(cx, cy);
-					System.err.println("Spawned at " + cx + ", " + cy);
-				}
-			}
-			repaint();
+	// Returns the spent time.
+	public double move() {
+		// Target set at all?
+		if (targetX == null || targetY == null) {
+			return 0;
 		}
-	});
+		
+		double dx = targetX - positionX;
+		double dy = targetY - positionY;
+		double hyp = Math.hypot(dx, dy);
+		double directionX = dx / hyp;
+		double directionY = dy / hyp;
+		float velocity = grid[map(positionX)][map(positionY)].getVelocity();
+		
+		double newPositionX = positionX + velocity * directionX * refreshRate / 1000.0;
+		double newPositionY = positionY + velocity * directionY * refreshRate / 1000.0;
+
+		boolean moveX = true;
+		boolean moveY = true;
+		double radius = 0.5 * playerSize / tileSize;
+		boolean collision = cornerCollides(newPositionX, newPositionY, radius);
+		if (collision) {
+			moveY = !cornerCollides(positionX, newPositionY, radius);
+			moveX = !cornerCollides(newPositionX, positionY, radius);
+			if (moveX && moveY) {
+				// Both directions separately are ok, but combined
+				// not ok, let's stop instead of guessing which
+				// direction would be better.
+				return 0;
+			}
+			if (!moveY) {
+				newPositionY = positionY;
+			}
+			if (!moveX) {
+				newPositionX = positionX;
+			}
+		}
+
+		double distance = Math.hypot(targetX - positionX, targetY - positionY);
+		double newDistance = Math.hypot(targetX - newPositionX, targetY - newPositionY);
+
+		// Not getting any closer, stop moving
+		if (newDistance > distance) {
+			targetX = null;
+			targetY = null;
+			return 0;
+		}
+
+		double spentTime = 0;
+		if (moveX) {
+			spentTime += Math.abs(directionX);
+			if (map(positionX) != map(newPositionX)) {
+				visionCache = null;
+			}
+			positionX = newPositionX;
+		}
+		if (moveY) {
+			spentTime += Math.abs(directionY);
+			if (map(positionY) != map(newPositionY)) {
+				visionCache = null;
+			}
+			positionY = newPositionY;
+		}
+		return spentTime;
+
+	}
 	
+	private final GameTimer timer = new GameTimer(this);
+	
+	private final Rectangle xArea = new Rectangle(8, 0, 15, 15);
+	private final Rectangle yArea = new Rectangle(58, 0, 15, 15);
+
 	private static int map(double x) {
 		return (int) Math.floor(x + 0.5);
 	}
@@ -177,7 +154,7 @@ public class Canvas extends JComponent {
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
-			clickableGrid = new Clickable[width][height];
+			thingGrid = new Renderable[width][height];
 			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
@@ -198,7 +175,7 @@ public class Canvas extends JComponent {
 					}
 					int alpha = (pixel >> 24) & 0xff;
 					if (alpha == 0x7f) {
-						clickableGrid[i][j] = new PokeStop();
+						thingGrid[i][j] = new PokeStop();
 					}
 				}
 			}
@@ -212,8 +189,20 @@ public class Canvas extends JComponent {
 				imageGrid[i][j] = Layers.createImage(grid, i, j);
 			}
 		}
-		
-		timer.start();
+		timer.addTimedEvent(new PokemonSpawn(), 0.5);
+	}
+	
+	public void spawnPokemon() {
+		int rad = Randomizer.r.nextInt(10) + 15;
+		double angle = Randomizer.r.nextDouble() * 2 * Math.PI;
+		double candX = positionX + rad * Math.cos(angle);
+		double candY = positionY + rad * Math.sin(angle);
+		int cx = map(candX);
+		int cy = map(candY);
+		if (cx >= 0 && cy >= 0 && cx < width && cy < height) {
+			createRandomPokemon(cx, cy);
+			System.err.println("Spawned at " + cx + ", " + cy);
+		}
 	}
 	
 	private void createRandomPokemon(int x, int y) {
@@ -260,22 +249,22 @@ public class Canvas extends JComponent {
 			}
 			break;
 		}
-		if (clickableGrid[x][y] == null) {
-			clickableGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
-			addEvent(new TimedEvent(clickableGrid[x][y], time + 3600 * 5)); // 5 game hours
+		if (thingGrid[x][y] == null) {
+			thingGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
+			timer.addTimedEvent(thingGrid[x][y], 5);
 		}
 	}
 	
 	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.BLACK);
-		g.fillRect(0, 0, 480, 640);
+		//g.fillRect(0, 0, 480, 640);
 
 		final int x = map(positionX);
 		final int y = map(positionY);
 		
 		float vision = this.vision;
-		double t = TimeUtil.getHoursFromMidnight(time);
+		double t = timer.getHoursFromMidnight();
 		if (t < 6) {
 			vision += t - 6;
 		}
@@ -306,8 +295,8 @@ public class Canvas extends JComponent {
 						int px = middleCornerX - (int) (dx * tileSize);
 						int py = middleCornerY - (int) (dy * tileSize);
 						g.drawImage(imageGrid[i][j], px, py, null);
-						if (clickableGrid[i][j] != null && clickableGrid[i][j].isVisible(light)) {
-							clickableGrid[i][j].render(g, px, py);
+						if (thingGrid[i][j] != null && thingGrid[i][j].isVisible(light)) {
+							thingGrid[i][j].render(g, px, py);
 						}
 						Color overlay = new Color(0, 0, 0, 255 - (int) (255 * light));
 						g.setColor(overlay);
@@ -320,8 +309,8 @@ public class Canvas extends JComponent {
 		// 220, 15 is ~middle
 		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), middleOvalCornerX, middleOvalCornerY, null);
 		g.setColor(Color.RED);
-		
-		paintTime(g);
+
+		timer.paint(g);
 		paintCoordinates(g);
 		String expNeeded = "Exp needed: " + trainer.getMissingExperience();
 		g.drawString(expNeeded, 250, 15);
@@ -329,14 +318,10 @@ public class Canvas extends JComponent {
 		g.drawString(level, 420, 15);
 		journal.paint(g, 15, 500);
 	}
-
-	private void paintTime(Graphics g) {
-		g.drawString("Time: " + TimeUtil.timeToString(time), 150, 15);			
-	}
 	
 	private void paintCoordinates(Graphics g) {
-		String coordinates = "Location: " + map(positionX) + ", " + map(positionY);
-		g.drawString(coordinates, 15, 15);
+		g.drawString("X: " + map(positionX), xArea.x, xArea.y + 15);
+		g.drawString("Y: " + map(positionY), yArea.x, yArea.y + 15);
 	}
 	
 	public void click(int x, int y) {
@@ -347,13 +332,13 @@ public class Canvas extends JComponent {
 		int px = map(targetX);
 		int py = map(targetY);
 		if (px >= 0 && py >= 0 && px < width && py < height) {
-			Clickable p = clickableGrid[px][py];
+			Renderable p = thingGrid[px][py];
 			if (p != null && visionCache != null &&
 				p.isVisible(visionCache.getLightness(px, py))) {
 				// Stop moving
 				this.targetX = null;
 				this.targetY = null;
-				p.click(this, trainer, time);
+				p.click(this, trainer);
 				return;
 			}
 		}
@@ -363,14 +348,22 @@ public class Canvas extends JComponent {
 	}
 	
 	public void clear(int x, int y) {
-		clickableGrid[x][y] = null;
-	}
-	
-	public void addEvent(TimedEvent e) {
-		eventQueue.addLast(e);
+		thingGrid[x][y] = null;
 	}
 	
 	public void press() {
 		System.err.println("Current position: " + positionX + ", " + positionY);
+	}
+	
+	public GameTimer getTimer() {
+		return timer;
+	}
+	
+	public class PokemonSpawn implements Targetable {
+		@Override
+		public void event(Canvas canvas) {
+			canvas.spawnPokemon();
+			timer.addTimedEvent(new PokemonSpawn(), 0.5);
+		}
 	}
 }

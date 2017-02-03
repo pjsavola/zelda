@@ -3,15 +3,15 @@ package pgs;
 import java.awt.Graphics;
 import java.awt.Image;
 
-public class PokeStop implements Clickable {
+public class PokeStop implements Renderable {
 
 	boolean available = true;
 	
 	@Override
-	public void click(Canvas parent, Trainer trainer, long time) {
+	public void click(Canvas parent, Trainer trainer) {
 		if (available) {
 			trainer.collect(parent, this);
-			parent.addEvent(new TimedEvent(this, time + 3600 * 10)); // 10 in game hours
+			parent.getTimer().addTimedEvent(this, 10);
 			available = false;
 			parent.repaint();
 		}
