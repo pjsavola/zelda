@@ -183,6 +183,7 @@ public class Trainer implements Serializable {
 			journal.add(new Journal.Entry("Level up: " + level));
 			JOptionPane.showMessageDialog(game, "Level up: " + level);
 		}
+		game.repaint(Simulator.journalArea);
 	}
 
 	private void levelUp() {

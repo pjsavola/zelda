@@ -115,12 +115,12 @@ public class Simulator {
 		}
 	}
 
-	public static final int windowWidth = 480;
-	public static final int windowHeight = 640;
+	public static int windowWidth = 480;
+	public static int windowHeight = 640;
 
 	// main areas
 	public static final Rectangle headerArea = new Rectangle(0, 0, 480, 25);
-	public static final Rectangle mainArea = new Rectangle(0, 25, 480, 480);
+	public static Rectangle mainArea = new Rectangle(0, 25, 480, 480);
 	public static final Rectangle footerArea = new Rectangle(0, 505, 480, 135);
 
 	// header sub areas
@@ -132,4 +132,29 @@ public class Simulator {
 
 	// footer sub areas
 	public static final Rectangle journalArea = new Rectangle(10, 505, 460, 125);
+
+	// Grid position related constants
+	public static int playerSize;
+	public static int middleCornerX;
+	public static int middleCornerY;
+	public static int middleX;
+	public static int middleY;
+	public static int playerCornerX;
+	public static int playerCornerY;	
+	public static void setGridConstants(int x, int y, int size) {
+		int gridOffsetX = x;
+		int gridOffsetY = y;
+		int gridSize = (windowWidth - 1) / Terrain.tileSize; // 29
+		playerSize = size;
+		middleCornerX = gridOffsetX + gridSize / 2 * Terrain.tileSize;
+		middleCornerY = gridOffsetY + gridSize / 2 * Terrain.tileSize;
+		middleX = middleCornerX + Terrain.tileSize / 2;
+		middleY = middleCornerY + Terrain.tileSize / 2;
+		playerCornerX = middleX - playerSize / 2 - 1;
+		playerCornerY = middleY - playerSize / 2 - 1;	
+	}
+
+	static {
+		setGridConstants(8, 30, 11);
+	}
 }

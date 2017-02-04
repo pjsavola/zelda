@@ -18,18 +18,6 @@ public class Game extends JComponent {
 	private double positionX;
 	private double positionY;
 
-	private static final int gridOffsetX = 8;
-	private static final int gridOffsetY = 30;
-	private static final int gridSize = 29;
-	private static final int tileSize = Terrain.tileSize;
-	private static final int playerSize = 11;
-	private static final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
-	private static final int middleCornerY = gridOffsetY + gridSize / 2 * tileSize;
-	private static final int middleX = middleCornerX + tileSize / 2;
-	private static final int middleY = middleCornerY + tileSize / 2;
-	private static final int playerCornerX = middleX - playerSize / 2 - 1;
-	private static final int playerCornerY = middleY - playerSize / 2 - 1;
-
 	// Must be 15.0f or less or the window is too small to show everything.
 	private float vision = 15.0f;
 	
@@ -52,6 +40,7 @@ public class Game extends JComponent {
 		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
 	    positionX = 30;
 	    positionY = 50;
+	    initialize();
 	}
 
 	public void initialize() {
@@ -59,8 +48,12 @@ public class Game extends JComponent {
 		timer.initialize();
 	}
 
+	protected float getVelocity(Terrain tile) {
+		return tile.getVelocity();
+	}
+
 	private boolean collides(int x, int y) {
-		return x < 0 || x >= width || y < 0 || y >= height || grid[x][y].getVelocity() == 0;
+		return x < 0 || x >= width || y < 0 || y >= height || getVelocity(grid[x][y]) == 0;
 	}
 	
 	private boolean cornerCollides(double newPositionX, double newPositionY, double radius) {
@@ -96,14 +89,14 @@ public class Game extends JComponent {
 		double hyp = Math.hypot(dx, dy);
 		double directionX = dx / hyp;
 		double directionY = dy / hyp;
-		float velocity = grid[map(positionX)][map(positionY)].getVelocity();
+		float velocity = getVelocity(grid[map(positionX)][map(positionY)]);
 		
 		double newPositionX = positionX + velocity * directionX * refreshRate / 1000.0;
 		double newPositionY = positionY + velocity * directionY * refreshRate / 1000.0;
 
 		boolean moveX = true;
 		boolean moveY = true;
-		double radius = 0.5 * playerSize / tileSize;
+		double radius = 0.5 * Simulator.playerSize / Terrain.tileSize;
 		boolean collision = cornerCollides(newPositionX, newPositionY, radius);
 		if (collision) {
 			moveY = !cornerCollides(positionX, newPositionY, radius);
@@ -221,44 +214,53 @@ public class Game extends JComponent {
 		final int maxY = Math.min(height, y + (int) vision);
 		
 		// Recalculate vision if needed.
-		if (visionCache == null) {
-			visionCache = new Vision(minX, x, maxX, minY, y, maxY, grid, vision);
-			visionCache.calculateFOV();
-		}
+		calculateVision(minX, x, maxX, minY, y, maxY, vision);
 
 		// Paint terrain.
 		paintTerrain(g, minX, maxX, minY, maxY);
 
 		// Paint player.
-		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), playerCornerX, playerCornerY, null);
+		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), Simulator.playerCornerX, Simulator.playerCornerY, null);
 
 		// Paint header and footer.
 		paintHeader(g);
 		paintFooter(g);
 	}
-	
+
+	protected void calculateVision(int minX, int x, int maxX, int minY, int y, int maxY, float vision) {
+		if (visionCache == null) {
+			visionCache = new Vision(minX, x, maxX, minY, y, maxY, grid, vision);
+			visionCache.calculateFOV();
+		}
+	}
+
+	protected float getLight(double dx, double dy, int i, int j) {
+		if (Math.hypot(dx, dy) < vision) {
+			return visionCache.getLightness(i, j);
+		}
+		return 0;
+	}
+
 	private void paintTerrain(Graphics g, int minX, int maxX, int minY, int maxY) {
 		for (int i = minX; i < maxX; i++) {
 			for (int j = minY; j < maxY; j++) {
 				double dx = positionX - i;
 				double dy = positionY - j;
-				if (Math.hypot(dx,dy) < vision) {
-					float light = visionCache.getLightness(i, j);
-					if (light > 0) {
-						int px = middleCornerX - (int) (dx * tileSize);
-						int py = middleCornerY - (int) (dy * tileSize);
-						g.drawImage(imageGrid[i][j], px, py, null);
-						if (renderableGrid[i][j] != null && renderableGrid[i][j].isVisible(light)) {
-							renderableGrid[i][j].render(g, px, py);
-						}
-						g.drawImage(ImageCache.getDarkOverlay(light), px, py, null);
+				float light = getLight(dx, dy, i, j);
+				if (light > 0) {
+					int px = Simulator.middleCornerX - (int) (dx * Terrain.tileSize);
+					int py = Simulator.middleCornerY - (int) (dy * Terrain.tileSize);
+					g.drawImage(imageGrid[i][j], px, py, null);
+					if (renderableGrid[i][j] != null && renderableGrid[i][j].isVisible(light)) {
+						renderableGrid[i][j].render(g, px, py);
 					}
+					g.drawImage(ImageCache.getDarkOverlay(light), px, py, null);
 				}
 			}
 		}		
 	}
 
-	private void paintHeader(Graphics g) {
+	protected void paintHeader(Graphics g) {
 		g.setColor(Color.RED);
 		final String expNeeded = "Exp needed: " + trainer.getMissingExperience();
 		final String level = "Level: " + trainer.getLevel();
@@ -271,11 +273,11 @@ public class Game extends JComponent {
 		
 	}
 
-	private void paintFooter(Graphics g) {
+	protected void paintFooter(Graphics g) {
 		trainer.paintJournal(g);
 	}
 
-	private float getVision() {
+	protected float getVision() {
 		float vision = this.vision;
 		double t = timer.getHoursFromMidnight();
 		if (t < 6) {
@@ -288,10 +290,10 @@ public class Game extends JComponent {
 	}
 
 	public void click(int x, int y) {
-		double dx = x - middleX;
-		double dy = y - middleY;
-		double targetX = positionX + dx / tileSize;
-		double targetY = positionY + dy / tileSize;
+		double dx = x - Simulator.middleX;
+		double dy = y - Simulator.middleY;
+		double targetX = positionX + dx / Terrain.tileSize;
+		double targetY = positionY + dy / Terrain.tileSize;
 		int px = map(targetX);
 		int py = map(targetY);
 		Renderable r = checkAndGetRenderable(px, py, null);
@@ -325,11 +327,16 @@ public class Game extends JComponent {
 		return fallback;
 	}
 
-	private Renderable checkAndGetRenderable(int x, int y, Renderable fallback) {
+	protected Renderable checkAndGetRenderable(int x, int y, Renderable fallback) {
 		if (x >= 0 && y >= 0 && x < width && y < height) {
 			return renderableGrid[x][y];
 		}
 		return fallback;
+	}
+
+	protected void spawn(PokemonSpawnEvent event) {
+		event.spawnPokemon();
+		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
 	}
 
 	public class PokemonSpawnEvent implements Targetable, Serializable {
@@ -337,8 +344,7 @@ public class Game extends JComponent {
 
 		@Override
 		public void event(Game game) {
-			spawnPokemon();
-			timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
+			spawn(this);
 		}
 
 		private void spawnPokemon() {
