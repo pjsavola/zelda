@@ -91,19 +91,4 @@ public enum PokemonKind {
 	public int getBaseDefence() {
 		return baseDefence;
 	}
-	
-	public void addCaptureResult(CaptureResult result) {
-		captureResults.put(result, captureResults.get(result) + 1);
-	}
-	
-	public void removeCaptureResult(CaptureResult result) {
-		captureResults.put(result, captureResults.get(result) - 1);
-	}
-	
-	public String getCaptureResults() {
-		Integer captured = captureResults.get(CaptureResult.CAPTURED);
-		Integer escaped = captureResults.get(CaptureResult.ESCAPED);
-		Integer free = captureResults.get(CaptureResult.FREE);
-		return captured + "/" + escaped + "/" + free;
-	}
 }

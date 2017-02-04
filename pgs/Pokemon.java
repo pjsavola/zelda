@@ -174,13 +174,13 @@ public class Pokemon implements Renderable {
 		trainer.capture(parent, this, false);
 		final CaptureResult result = getStatus();
 		if (clickTime == null) {
-			kind.addCaptureResult(result);
+			trainer.modifyCaptureStats(kind, result, 1);
 		}
 		if (result != CaptureResult.FREE) {
 			event(parent);
 			if (clickTime != null) {
-				kind.removeCaptureResult(CaptureResult.FREE);
-				kind.addCaptureResult(result);
+				trainer.modifyCaptureStats(kind, CaptureResult.FREE, -1);
+				trainer.modifyCaptureStats(kind, result, 1);
 			}
 		}
 		clickTime = parent.getTimer().getTime();
@@ -192,7 +192,7 @@ public class Pokemon implements Renderable {
 		parent.repaint();
 	}
 	
-	public String getCaptureResults() {
-		return kind.getCaptureResults();
+	public PokemonKind getKind() {
+		return kind;
 	}
 }

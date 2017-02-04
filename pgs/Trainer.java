@@ -24,34 +24,52 @@ public class Trainer {
 	private Map<CatchItem, Integer> catchItemCounts;
 	private Map<HealItem, Integer> healItemCounts;
 	private List<Pokemon> pokemonStorage = new ArrayList<>();
-	private Map<Pokemon, CaptureData> captureData = new HashMap<>();
 	private Map<PokeStop, Integer> stopData = new HashMap<>();
+	private Map<PokemonKind, Map<CaptureResult, Integer>> captureStats = new HashMap<>();
 	private int level = 1;
 	private int exp = 0;
-	private int cumulativeExp = 0;
 
-	private static Map<CatchItem, Integer> initCatchItemMap() {
-		Map<CatchItem, Integer> m = new HashMap<>();
-		for (CatchItem item : CatchItem.values()) {
-			m.put(item, 0);
+	private static abstract class Generator <T> {
+		abstract protected T generate();
+	}
+	private static class IntegerGenerator extends Generator<Integer> {
+		@Override protected Integer generate() { return 0; }
+	}
+	private static class MapGenerator extends Generator<Map<CaptureResult, Integer>> {
+		@Override protected Map<CaptureResult, Integer> generate() {
+			return initEnumMap(CaptureResult.values(), new IntegerGenerator());
+		}
+	}
+
+	private static <T, U> Map<T, U> initEnumMap(T[] values, Generator<U> generator) {
+		Map<T, U> m = new HashMap<>();
+		for (T item : values) {
+			m.put(item, generator.generate());
 		}
 		return m;
 	}
 
-	private static Map<HealItem, Integer> initHealItemMap() {
-		Map<HealItem, Integer> m = new HashMap<>();
-		for (HealItem item : HealItem.values()) {
-			m.put(item, 0);
-		}
-		return m;
-	}
-	
 	public Trainer() {
-		catchItemCounts = initCatchItemMap();
-		healItemCounts = initHealItemMap();
+		catchItemCounts = initEnumMap(CatchItem.values(), new IntegerGenerator());
+		healItemCounts = initEnumMap(HealItem.values(), new IntegerGenerator());
+		captureStats = initEnumMap(PokemonKind.values(), new MapGenerator());
 		gainItems(CatchItem.POKE_BALL, 25);
 	}
+
+	private String printCaptureStats(PokemonKind kind) {
+		final Map<CaptureResult, Integer> stats = captureStats.get(kind);
+		Integer captured = stats.get(CaptureResult.CAPTURED);
+		Integer escaped = stats.get(CaptureResult.ESCAPED);
+		Integer free = stats.get(CaptureResult.FREE);
+		return captured + "/" + escaped + "/" + free;
+	}
+
 	
+	public void modifyCaptureStats(PokemonKind kind, CaptureResult result, int modifier) {
+		final Map<CaptureResult, Integer> stats = captureStats.get(kind);
+		stats.put(result, stats.get(result) + modifier);
+	}
+
 	public void capture(final Canvas parent, final Pokemon p, final boolean razzberry) {
 		
 		// Create options for the dialog window
@@ -70,7 +88,7 @@ public class Trainer {
 
 		JOptionPane optionPane = new JOptionPane();
 	    optionPane.setIcon(p.getIcon());
-	    optionPane.setMessage("CP: " + p.getCombatPower() + "\n" + p.getCaptureResults());
+	    optionPane.setMessage("CP: " + p.getCombatPower() + "\n" + printCaptureStats(p.getKind()));
 	    optionPane.setMessageType(JOptionPane.QUESTION_MESSAGE);
 	    optionPane.setOptions(new Object[] {"Flee"});
 	    
@@ -131,25 +149,29 @@ public class Trainer {
 	    dialogArray[0] = dialog;
 	    dialog.setVisible(true);
 	}
-	
-	public void addCaptureData(Pokemon p, CaptureData data) {
-		captureData.put(p, data);
-	}
-	
+
 	public int getLevel() {
 		return level;
 	}
-	
+
 	public int getMissingExperience() {
 		if (level > expRequired.length) {
 			return 0;
 		}
 		return expRequired[level - 1] - exp;
 	}
-	
+
+	public int getTotalExperience() {
+		int level = 1;
+		int totalExp = exp;
+		while (this.level < level++) {
+			totalExp += expRequired[level - 1];
+		}
+		return totalExp;
+	}
+
 	private void gainXp(Canvas parent, int xp) {
 		parent.journal.amend(" + " + xp + " exp");
-		cumulativeExp += xp;
 		exp += xp;
 		while (level <= expRequired.length && exp >= expRequired[level - 1]) {
 			exp -= expRequired[level - 1];
@@ -158,7 +180,7 @@ public class Trainer {
 			JOptionPane.showMessageDialog(parent, "Level up: " + level);
 		}
 	}
-	
+
 	private void levelUp() {
 		switch (++level) {
 		case 2:
@@ -312,17 +334,17 @@ public class Trainer {
 			break;
 		}
 	}
-	
+
 	private void gainItems(CatchItem item, int count) {
 		Integer oldCount = catchItemCounts.get(item);
 		catchItemCounts.put(item, oldCount + count);
 	}
-	
+
 	private void gainItems(HealItem item, int count) {
 		Integer oldCount = healItemCounts.get(item);
 		healItemCounts.put(item, oldCount + count);
 	}
-	
+
 	private static void createRandomItems(int count, int level, Map<CatchItem, Integer> m1, Map<HealItem, Integer> m2) {
 		while (count-- > 0) {
 			if (level >= 5 && Randomizer.r.nextInt(5) == 0) {
@@ -360,14 +382,14 @@ public class Trainer {
 			}
 		}
 	}
-	
+
 	public void collect(Canvas parent, PokeStop stop) {
 		Integer visitCount = stopData.get(stop);
 		if (visitCount == null) {
 			visitCount = 0;
 		}
-		Map<CatchItem, Integer> m1 = initCatchItemMap();
-		Map<HealItem, Integer> m2 = initHealItemMap();
+		Map<CatchItem, Integer> m1 = initEnumMap(CatchItem.values(), new IntegerGenerator());
+		Map<HealItem, Integer> m2 = initEnumMap(HealItem.values(), new IntegerGenerator());
 		createRandomItems(Math.max(3, Randomizer.r.nextInt(7)), level, m1, m2);
 		String text = "Received: ";
 		for (Map.Entry<CatchItem, Integer> e : m1.entrySet()) {

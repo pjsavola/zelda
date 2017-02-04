@@ -350,10 +350,10 @@ public class Canvas extends JComponent {
 			case 8: tile = checkAndGetTerrain(x,     y - 1, tile); break;
 			case 9: tile = checkAndGetTerrain(x + 1, y - 1, tile); break;
 			}
-			if (renderableGrid[x][y] == null) {
+			if (tile != null && renderableGrid[x][y] == null) {
 				renderableGrid[x][y] = new Pokemon(tile, trainer.getLevel(), x, y);
 				timer.addTimedEvent(renderableGrid[x][y], 5);
-				// System.err.println("Spawned at " + x + ", " + y);
+				System.err.println("Spawned at " + x + ", " + y);
 			}
 		}
 	}
