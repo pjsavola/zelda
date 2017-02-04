@@ -28,13 +28,13 @@ public class Simulator {
 		frame.addKeyListener(new KeyListener() {
 			@Override
 			public void keyPressed(KeyEvent e) {
-				game.press();
 			}
 			@Override
 			public void keyReleased(KeyEvent e) {
 			}
 			@Override
 			public void keyTyped(KeyEvent e) {
+				game.press(e.getKeyChar());
 			}
 		});
 		game.addMouseListener(new MouseListener() {
@@ -93,7 +93,7 @@ public class Simulator {
 			game = (Game) in.readObject();
 			in.close();
 			fileIn.close();
-			game.initialize();
+			game.initialize(false);
 		} catch (IOException e) {
 			System.err.println("Failed to load the game");
 		} catch (ClassNotFoundException e) {

@@ -12,11 +12,39 @@ import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 
 public abstract class ImageCache {
+	private static Map<String, Icon> iconCache = new HashMap<>();
 	private static Map<String, BufferedImage> imageCache = new HashMap<>();
 	private static Map<List<String>, BufferedImage> layeredImageCache = new HashMap<>();
 	private static Map<Integer, BufferedImage> darkOverlayCache = new HashMap<>();
+
+	public static Icon getTerrainIcon(String name) {
+		final String path = "images/terrain/" + name + ".png";
+		return getIcon(path, name);
+	}
+
+	public static Icon getPokemonIcon(String name) {
+		final String path = "images/pokemon/" + name + "_large.png";
+		return getIcon(path, name);
+	}
+
+	public static Icon getIcon(String path, String name) {
+		Icon icon = iconCache.get(path);
+		if (icon != null) {
+			return icon;
+		}
+		icon = new ImageIcon(path, name);
+		iconCache.put(path, icon);
+		return icon;
+	}
+
+	public static BufferedImage getPokemonImage(String name) {
+		final String path = "images/pokemon/" + name + ".png";
+		return getImage(path);
+	}
 
 	public static BufferedImage getTerrainImage(String name) {
 		final String path = "images/terrain/" + name + ".png";

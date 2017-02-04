@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 
 public enum PokemonKind {
 
@@ -45,8 +44,8 @@ public enum PokemonKind {
 		this.baseDefence = bd;
 		this.evolvesTo = evolvesTo;
 		this.types = Arrays.asList(types);
-		this.image = ImageCache.getImage("images/pokemon/" + name + ".png");
-		this.icon = new ImageIcon("images/pokemon/" + name + "_large.png", name);
+		this.image = ImageCache.getPokemonImage(name);
+		this.icon = ImageCache.getPokemonIcon(name);
 		captureResults.put(CaptureResult.CAPTURED, 0);
 		captureResults.put(CaptureResult.ESCAPED, 0);
 		captureResults.put(CaptureResult.FREE, 0);

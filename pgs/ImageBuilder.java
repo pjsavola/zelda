@@ -39,7 +39,7 @@ public abstract class ImageBuilder {
 	}
 	
 	// initializes based on numpad directions, and null at the edges
-	private static Terrain[] getAdjacentTerrains(Terrain[][] grid, int x, int y) {
+	public static Terrain[] getAdjacentTerrains(Terrain[][] grid, int x, int y) {
 		final Terrain[] n = new Terrain[10];
 		n[5] = grid[x][y];
 		if (x > 0) {

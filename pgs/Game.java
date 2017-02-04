@@ -6,6 +6,11 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
@@ -38,14 +43,20 @@ public class Game extends JComponent {
 	public Game(String mapPath) {
 		this.mapPath = mapPath;
 		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
-	    positionX = 30;
-	    positionY = 50;
-	    initialize();
+	    initialize(true);
 	}
 
-	public void initialize() {
-		loadMap();
+	public void initialize(boolean loadRenderables) {
+		loadMap(createMapImage(), loadRenderables);
 		timer.initialize();
+	}
+
+	protected BufferedImage createMapImage() {
+		try {
+			return ImageIO.read(new File(mapPath));
+		} catch (IOException e) {
+			throw new RuntimeException("Map missing: " + mapPath);
+		}
 	}
 
 	protected float getVelocity(Terrain tile) {
@@ -87,6 +98,10 @@ public class Game extends JComponent {
 		double dx = targetX - positionX;
 		double dy = targetY - positionY;
 		double hyp = Math.hypot(dx, dy);
+		if (hyp < 0.01) {
+			// Target too close.
+			return 0;
+		}
 		double directionX = dx / hyp;
 		double directionY = dy / hyp;
 		float velocity = getVelocity(grid[map(positionX)][map(positionY)]);
@@ -120,8 +135,7 @@ public class Game extends JComponent {
 
 		// Not getting any closer, stop moving
 		if (newDistance > distance) {
-			targetX = null;
-			targetY = null;
+			stopMoving();
 			return 0;
 		}
 
@@ -129,7 +143,7 @@ public class Game extends JComponent {
 		if (moveX) {
 			spentTime += Math.abs(directionX);
 			if (map(positionX) != map(newPositionX)) {
-				visionCache = null;
+				clearVisionCache();
 				repaint(Simulator.xArea);
 			}
 			positionX = newPositionX;
@@ -137,7 +151,7 @@ public class Game extends JComponent {
 		if (moveY) {
 			spentTime += Math.abs(directionY);
 			if (map(positionY) != map(newPositionY)) {
-				visionCache = null;
+				clearVisionCache();
 				repaint(Simulator.yArea);
 			}
 			positionY = newPositionY;
@@ -150,42 +164,57 @@ public class Game extends JComponent {
 		return (int) Math.floor(x + 0.5);
 	}
 
-	private void loadMap() {
-		boolean loadRenderables = renderableGrid == null;
-		try {
-			BufferedImage image = ImageIO.read(new File(mapPath));
-			width = image.getWidth();
-			height = image.getHeight();
-			grid = new Terrain[width][height];
-			if (loadRenderables) {
-				renderableGrid = new Renderable[width][height];
-			}
-			imageGrid = new BufferedImage[width][height];
-			for (int i = 0; i < width; i++) {
-				for (int j = 0; j < height; j++) {
-					int pixel = image.getRGB(i, j);
-					//int alpha = (pixel >> 24) & 0xff;
-				    //int red = (pixel >> 16) & 0xff;
-				    //int green = (pixel >> 8) & 0xff;
-				    //int blue = (pixel) & 0xff;
-					grid[i][j] = Terrain.WATER;
-					for (Terrain t : Terrain.values()) {
-						if ((pixel & 0x00ffffff) == t.getMask()) {
-							grid[i][j] = t;
-							break;
-						}
+	protected void clearVisionCache() {
+		visionCache = null;
+	}
+
+	protected void stopMoving() {
+		targetX = null;
+		targetY = null;
+	}
+
+	protected void setPosition(int x, int y) {
+		if (x >= 0 && x < width && y >= 0 && y < width) {
+			positionX = x;
+			positionY = y;
+		}
+	}
+
+	protected void loadMap(BufferedImage image, boolean loadRenderables) {
+		width = image.getWidth();
+		height = image.getHeight();
+		grid = new Terrain[width][height];
+		if (loadRenderables) {
+			renderableGrid = new Renderable[width][height];
+			positionX = 0;
+			positionY = 0;
+		}
+		imageGrid = new BufferedImage[width][height];
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				int pixel = image.getRGB(i, j);
+				//int alpha = (pixel >> 24) & 0xff;
+			    //int red = (pixel >> 16) & 0xff;
+			    //int green = (pixel >> 8) & 0xff;
+			    //int blue = (pixel) & 0xff;
+				grid[i][j] = Terrain.WATER;
+				for (Terrain t : Terrain.values()) {
+					if (pixel == t.getMask()) {
+						grid[i][j] = t;
+						break;
 					}
-					if (loadRenderables) {
-						// 50% transparency is interpreted as a poke stop
-						int alpha = (pixel >> 24) & 0xff;
-						if (alpha == 0x7f) {
-							renderableGrid[i][j] = new PokeStop();
-						}
+				}
+				if (loadRenderables) {
+					// 50% transparency is interpreted as a poke stop
+					int alpha = (pixel >> 24) & 0xff;
+					if (alpha == 0x7f) {
+						renderableGrid[i][j] = new PokeStop();
+					} else if (alpha == 0x64) {
+						positionX = i;
+						positionY = j;
 					}
 				}
 			}
-		} catch (IOException e) {
-			throw new RuntimeException("Map missing: " + mapPath);
 		}
 
 		// Create images for the whole map. 
@@ -194,6 +223,19 @@ public class Game extends JComponent {
 				imageGrid[i][j] = ImageBuilder.createImage(grid, i, j);
 			}
 		}
+	}
+
+	protected BufferedImage getMapAsImage() {
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics g = image.getGraphics();
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				int mask = grid[i][j].getMask();
+				g.setColor(new Color(mask, true));
+				g.drawRect(i, j, 1, 1);
+			}
+		}
+		return image;
 	}
 
 	@Override
@@ -217,7 +259,7 @@ public class Game extends JComponent {
 		calculateVision(minX, x, maxX, minY, y, maxY, vision);
 
 		// Paint terrain.
-		paintTerrain(g, minX, maxX, minY, maxY);
+		paintTerrain(g, minX, maxX, minY, maxY, vision);
 
 		// Paint player.
 		g.drawImage(ImageCache.getImage("images/terrain/Player.png"), Simulator.playerCornerX, Simulator.playerCornerY, null);
@@ -234,19 +276,19 @@ public class Game extends JComponent {
 		}
 	}
 
-	protected float getLight(double dx, double dy, int i, int j) {
+	protected float getLight(double dx, double dy, int i, int j, float vision) {
 		if (Math.hypot(dx, dy) < vision) {
 			return visionCache.getLightness(i, j);
 		}
 		return 0;
 	}
 
-	private void paintTerrain(Graphics g, int minX, int maxX, int minY, int maxY) {
+	private void paintTerrain(Graphics g, int minX, int maxX, int minY, int maxY, float vision) {
 		for (int i = minX; i < maxX; i++) {
 			for (int j = minY; j < maxY; j++) {
 				double dx = positionX - i;
 				double dy = positionY - j;
-				float light = getLight(dx, dy, i, j);
+				float light = getLight(dx, dy, i, j, vision);
 				if (light > 0) {
 					int px = Simulator.middleCornerX - (int) (dx * Terrain.tileSize);
 					int py = Simulator.middleCornerY - (int) (dy * Terrain.tileSize);
@@ -284,7 +326,7 @@ public class Game extends JComponent {
 			vision += t - 6;
 		}
 		if (visionCache != null && visionCache.getRadius() != vision) {
-			visionCache = null;
+			clearVisionCache();
 		}
 		return vision;
 	}
@@ -308,11 +350,63 @@ public class Game extends JComponent {
 		}
 	}
 
+	protected void modify(int x, int y, Terrain tile, boolean fillMode) {
+		double dx = x - Simulator.middleX;
+		double dy = y - Simulator.middleY;
+		double targetX = positionX + dx / Terrain.tileSize;
+		double targetY = positionY + dy / Terrain.tileSize;
+		int px = map(targetX + 0.5);
+		int py = map(targetY + 0.5);
+		final Terrain t = checkAndGetTerrain(px, py, null);
+		if (t != null && t != tile) {
+			if (fillMode) {
+				Set<List<Integer>> visitedPairs = new HashSet<>();
+				List<List<Integer>> workPairs = new ArrayList<>();
+				workPairs.add(Arrays.asList(px, py));
+				while (!workPairs.isEmpty()) {
+					visit(workPairs.remove(0), visitedPairs, workPairs, t);
+				}
+				for (List<Integer> pair : visitedPairs) {
+					modify(pair.get(0), pair.get(1), tile);
+				}
+			} else {
+				modify(px, py, tile);
+			}
+		}
+	}
+
+	private void visit(List<Integer> pair, Set<List<Integer>> visitedPairs, List<List<Integer>> workPairs, Terrain t) {
+		int px = pair.get(0);
+		int py = pair.get(1);
+		if (checkAndGetTerrain(px, py, null) == t) {
+			if (visitedPairs.add(pair)) {
+				workPairs.add(Arrays.asList(px + 1, py));
+				workPairs.add(Arrays.asList(px - 1, py));
+				workPairs.add(Arrays.asList(px, py + 1));
+				workPairs.add(Arrays.asList(px, py - 1));
+			}
+		}
+	}
+
+	private void modify(int x, int y, Terrain tile) {
+		grid[x][y] = tile;
+		imageGrid[x][y] = ImageBuilder.createImage(grid, x, y);
+		Terrain[] terrains = ImageBuilder.getAdjacentTerrains(grid, x, y);
+		if (terrains[1] != null) imageGrid[x - 1][y + 1] = ImageBuilder.createImage(grid, x - 1, y + 1);
+		if (terrains[2] != null) imageGrid[x    ][y + 1] = ImageBuilder.createImage(grid, x    , y + 1);
+		if (terrains[3] != null) imageGrid[x + 1][y + 1] = ImageBuilder.createImage(grid, x + 1, y + 1);
+		if (terrains[4] != null) imageGrid[x - 1][y    ] = ImageBuilder.createImage(grid, x - 1, y    );
+		if (terrains[6] != null) imageGrid[x + 1][y    ] = ImageBuilder.createImage(grid, x + 1, y    );
+		if (terrains[7] != null) imageGrid[x - 1][y - 1] = ImageBuilder.createImage(grid, x - 1, y - 1);
+		if (terrains[8] != null) imageGrid[x    ][y - 1] = ImageBuilder.createImage(grid, x    , y - 1);
+		if (terrains[9] != null) imageGrid[x + 1][y - 1] = ImageBuilder.createImage(grid, x + 1, y - 1);
+	}
+
 	public void removeRenderable(int x, int y) {
 		renderableGrid[x][y] = null;
 	}
 
-	public void press() {
+	public void press(char c) {
 		System.err.println("Current position: " + positionX + ", " + positionY);
 	}
 
