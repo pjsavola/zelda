@@ -1,5 +1,6 @@
 package pgs;
 
+import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -15,10 +16,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 public class Trainer implements Serializable {
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 
 	private static final int[] expRequired = {
@@ -34,6 +31,7 @@ public class Trainer implements Serializable {
 	private Map<PokemonKind, Map<CaptureResult, Integer>> captureStats = new HashMap<>();
 	private int level = 1;
 	private int exp = 0;
+	private final Journal journal = new Journal();
 
 	private static abstract class Generator <T> {
 		abstract protected T generate();
@@ -76,7 +74,7 @@ public class Trainer implements Serializable {
 		stats.put(result, stats.get(result) + modifier);
 	}
 
-	public void capture(final Game parent, final Pokemon p, final boolean razzberry) {
+	public void capture(final Game game, final Pokemon p, final boolean razzberry) {
 		
 		// Create options for the dialog window
 		CatchItem[] options = CatchItem.values();
@@ -119,7 +117,7 @@ public class Trainer implements Serializable {
 					catchItemCounts.put(item, catchItemCounts.get(item) - 1);
 					if (item == CatchItem.RAZZBERRY) {
 						dialog.dispose();
-						capture(parent, p, true);
+						capture(game, p, true);
 						return;
 					}
 					CaptureResult result = p.capture(item, razzberry);
@@ -128,21 +126,21 @@ public class Trainer implements Serializable {
 						JOptionPane.showMessageDialog(dialog, p.getName() + " caught!");
 						dialog.dispose();
 						pokemonStorage.add(p);
-						parent.journal.add(new Journal.Entry(
+						journal.add(new Journal.Entry(
 							p.getName() + " (" + p.getCombatPower() + ") captured!"));
-						gainXp(parent, 100); // tweak?
+						gainXp(game, 100); // tweak?
 						break;
 					case FREE:
 						JOptionPane.showMessageDialog(dialog, "Broke free!");
 						dialog.dispose();
-						capture(parent, p, false);
+						capture(game, p, false);
 						break;
 					case ESCAPED:
 						JOptionPane.showMessageDialog(dialog, "Broke free and escaped!");
 						dialog.dispose();
-						parent.journal.add(new Journal.Entry(
+						journal.add(new Journal.Entry(
 								p.getName() + " (" + p.getCombatPower() + ") ran away!"));
-						gainXp(parent, 25);
+						gainXp(game, 25);
 						break;
 					}
 				}
@@ -151,7 +149,7 @@ public class Trainer implements Serializable {
 	    }
 	    optionPane.setOptionType(JOptionPane.OK_OPTION);
 	    optionPane.add(panel, 1);
-	    JDialog dialog = optionPane.createDialog(parent, "Capturing " + p.getName());
+	    JDialog dialog = optionPane.createDialog(game, "Capturing " + p.getName());
 	    dialogArray[0] = dialog;
 	    dialog.setVisible(true);
 	}
@@ -176,14 +174,14 @@ public class Trainer implements Serializable {
 		return totalExp;
 	}
 
-	private void gainXp(Game parent, int xp) {
-		parent.journal.amend(" + " + xp + " exp");
+	private void gainXp(Game game, int xp) {
+		journal.amend(" + " + xp + " exp");
 		exp += xp;
 		while (level <= expRequired.length && exp >= expRequired[level - 1]) {
 			exp -= expRequired[level - 1];
 			levelUp();
-			parent.journal.add(new Journal.Entry("Level up: " + level));
-			JOptionPane.showMessageDialog(parent, "Level up: " + level);
+			journal.add(new Journal.Entry("Level up: " + level));
+			JOptionPane.showMessageDialog(game, "Level up: " + level);
 		}
 	}
 
@@ -389,7 +387,7 @@ public class Trainer implements Serializable {
 		}
 	}
 
-	public void collect(Game parent, PokeStop stop) {
+	public void collect(Game game, PokeStop stop) {
 		Integer visitCount = stopData.get(stop);
 		if (visitCount == null) {
 			visitCount = 0;
@@ -410,8 +408,12 @@ public class Trainer implements Serializable {
 				text += e.getValue() + "x " + e.getKey().getName() + ", ";
 			}
 		}
-		parent.journal.add(new Journal.Entry(text.substring(0, text.length() - 2)));
-		gainXp(parent, Math.max(0, 50 - visitCount));
+		journal.add(new Journal.Entry(text.substring(0, text.length() - 2)));
+		gainXp(game, Math.max(0, 50 - visitCount));
 		stopData.put(stop, ++visitCount);
+	}
+
+	public void paintJournal(Graphics g) {
+		journal.paint(g);
 	}
 }

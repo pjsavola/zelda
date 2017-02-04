@@ -172,26 +172,26 @@ public class Pokemon implements Renderable, Serializable {
 	}
 
 	@Override
-	public void click(Game parent, Trainer trainer) {
-		trainer.capture(parent, this, false);
+	public void click(Game game, Trainer trainer) {
+		trainer.capture(game, this, false);
 		final CaptureResult result = getStatus();
 		if (clickTime == null) {
 			trainer.modifyCaptureStats(kind, result, 1);
 		}
 		if (result != CaptureResult.FREE) {
-			event(parent);
+			event(game);
 			if (clickTime != null) {
 				trainer.modifyCaptureStats(kind, CaptureResult.FREE, -1);
 				trainer.modifyCaptureStats(kind, result, 1);
 			}
+			game.repaint(Simulator.mainArea);
 		}
-		clickTime = parent.getTimer().getTime();
+		clickTime = game.getTimer().getTime();
 	}
 
 	@Override
-	public void event(Game parent) {
-		parent.removeRenderable(x, y);
-		parent.repaint();
+	public void event(Game game) {
+		game.removeRenderable(x, y);
 	}
 	
 	public PokemonKind getKind() {

@@ -13,7 +13,7 @@ import java.util.Map;
 
 import javax.imageio.ImageIO;
 
-public class ImageCache {
+public abstract class ImageCache {
 	private static Map<String, BufferedImage> imageCache = new HashMap<>();
 	private static Map<List<String>, BufferedImage> layeredImageCache = new HashMap<>();
 	private static Map<Integer, BufferedImage> darkOverlayCache = new HashMap<>();

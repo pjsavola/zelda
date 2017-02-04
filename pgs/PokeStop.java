@@ -10,19 +10,18 @@ public class PokeStop implements Renderable, Serializable {
 	boolean available = true;
 	
 	@Override
-	public void click(Game parent, Trainer trainer) {
+	public void click(Game game, Trainer trainer) {
 		if (available) {
-			trainer.collect(parent, this);
-			parent.getTimer().addTimedEvent(this, 10);
+			trainer.collect(game, this);
+			game.getTimer().addTimedEvent(this, 10);
 			available = false;
-			parent.repaint();
+			game.repaint(Simulator.mainArea);
 		}
 	}
 
 	@Override
-	public void event(Game parent) {
+	public void event(Game game) {
 		available = true;
-		parent.repaint();
 	}
 
 	@Override

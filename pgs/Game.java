@@ -37,7 +37,6 @@ public class Game extends JComponent {
 	private transient Double targetY;
 
 	private Trainer trainer = new Trainer();
-	Journal journal = new Journal();
 	
 	private transient Vision visionCache;
 
@@ -273,7 +272,7 @@ public class Game extends JComponent {
 	}
 
 	private void paintFooter(Graphics g) {
-		journal.paint(g);
+		trainer.paintJournal(g);
 	}
 
 	private float getVision() {

@@ -2,5 +2,5 @@ package pgs;
 
 
 public interface Clickable {
-	void click(Game canvas, Trainer trainer);
+	void click(Game game, Trainer trainer);
 }
