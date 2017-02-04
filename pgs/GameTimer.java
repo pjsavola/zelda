@@ -21,7 +21,7 @@ public class GameTimer {
 		timer = new Timer(refreshRate, new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent event) {
-				double spentTime = game.move();
+				double spentTime = game.move(refreshRate);
 				if (spentTime > 0) {
 					advanceTime(spentTime);
 				}
@@ -66,6 +66,12 @@ public class GameTimer {
 
 	public void paint(Graphics g) {
 		g.drawString("Time: " + timeString, Simulator.timeArea.x, Simulator.timeArea.y + 15);
+	}
+
+	public void click(Clickable clickable, Trainer trainer) {
+		timer.stop();
+		clickable.click(game, trainer);
+		timer.start();
 	}
 
 	// Advance game time, trigger any events and trigger repaint for required areas.

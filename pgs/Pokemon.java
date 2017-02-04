@@ -188,7 +188,7 @@ public class Pokemon implements Renderable {
 
 	@Override
 	public void event(Canvas parent) {
-		parent.clear(x, y);
+		parent.removeRenderable(x, y);
 		parent.repaint();
 	}
 	

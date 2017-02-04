@@ -4,7 +4,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Layers {
+public abstract class ImageBuilder {
 
 	private static Terrain getThemeTerrain(Terrain terrain) {
 		if (terrain == null) {

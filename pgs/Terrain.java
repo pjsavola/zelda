@@ -72,7 +72,7 @@ public enum Terrain {
 	ROAD_SAND("Road", SAND, 8.0f, 0.0f, PokemonDistribution.GRASS, 0x00cc8800),
 	ROAD_SNOW("Road", SNOW, 8.0f, 0.0f, PokemonDistribution.GRASS, 0x00aa6644);
 
-	public static int tileSize = 16;
+	public static final int tileSize = 16;
 
 	private final String name;
 	private final float velocity;

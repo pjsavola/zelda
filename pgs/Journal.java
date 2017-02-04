@@ -25,14 +25,14 @@ public class Journal {
 		entries.get(0).text += text;
 	}
 	
-	void paint(Graphics g, int x, int y) {
+	void paint(Graphics g) {
 		Color color = Color.BLUE;
 		Iterator<Entry> it = entries.iterator();
 		int count = 0;
 		while (it.hasNext()) {
 			Entry entry = it.next();
 			g.setColor(color);
-			g.drawString(entry.text, x, y + 15 * count);
+			g.drawString(entry.text, Simulator.journalArea.x, Simulator.journalArea.y + 15 * count);
 			color = color.darker();
 			if (++count > 4) {
 				break;
