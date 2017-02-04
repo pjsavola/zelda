@@ -4,9 +4,10 @@ package pgs;
 public enum PokemonDistribution {	
 
 	GRASS(new PokemonKind[] {
+			PokemonKind.BULBASAUR, PokemonKind.IVYSAUR, PokemonKind.VENUSAUR,
 			PokemonKind.PIDGEY, PokemonKind.PIDGEOTTO, PokemonKind.PIDGEOT,
 			PokemonKind.DRATINI, PokemonKind.DRAGONAIR, PokemonKind.DRAGONITE},
-			new int[] {30, 20, 10, 20, 12, 8});
+			new int[] {10, 6, 3, 32, 20, 10, 10, 6, 3});
 
 	private PokemonKind[] pokemonArray = new PokemonKind[100];
 	

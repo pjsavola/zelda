@@ -2,6 +2,8 @@ package pgs;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +17,12 @@ public class ImageCache {
 	private static Map<String, BufferedImage> imageCache = new HashMap<>();
 	private static Map<List<String>, BufferedImage> layeredImageCache = new HashMap<>();
 	private static Map<Integer, BufferedImage> darkOverlayCache = new HashMap<>();
-	
+
+	public static BufferedImage getTerrainImage(String name) {
+		final String path = "images/terrain/" + name + ".png";
+		return getImage(path);
+	}
+
 	public static BufferedImage getImage(String path) {
 		BufferedImage image = imageCache.get(path);
 		if (image != null) {
@@ -23,16 +30,10 @@ public class ImageCache {
 		}
 		try {
 			image = ImageIO.read(new File(path));
-			imageCache.put(path, image);
 		} catch (IOException e) {
 			throw new RuntimeException("Image " + path + " is missing");
 		}
-		return image;
-	}
-
-	public static BufferedImage getTerrainImage(String name) {
-		final String path = "images/terrain/" + name + ".png";
-		return getImage(path);
+		return updateCache(image, path, imageCache);
 	}
 
 	public static BufferedImage getLayeredTerrainImage(List<String> names) {
@@ -47,8 +48,8 @@ public class ImageCache {
 			image = getTerrainImage(name);
 			g.drawImage(image, 0, 0, null);
 		}
-		layeredImageCache.put(names, combined);
-		return combined;
+		g.dispose();
+		return updateCache(combined, names, layeredImageCache);
 	}
 
 	public static BufferedImage getDarkOverlay(float light) {
@@ -58,12 +59,37 @@ public class ImageCache {
 			return image;
 		}
 		image = new BufferedImage(
-				Terrain.tileSize, Terrain.tileSize, BufferedImage.TYPE_INT_ARGB);
+			Terrain.tileSize, Terrain.tileSize, BufferedImage.TYPE_INT_ARGB);
 		Graphics g = image.getGraphics();
 		Color overlay = new Color(0, 0, 0, alpha);
 		g.setColor(overlay);
 		g.fillRect(0, 0, Terrain.tileSize, Terrain.tileSize);
-		darkOverlayCache.put(alpha, image);
+		g.dispose();
+		return updateCache(image, alpha, darkOverlayCache);
+	}
+
+	private static <T> BufferedImage updateCache(BufferedImage image, T key, Map<T, BufferedImage> cache) {
+		image = toCompatibleImage(image);
+		cache.put(key, image);
 		return image;
 	}
+
+	private static BufferedImage toCompatibleImage(BufferedImage image) { 
+        GraphicsConfiguration gc = getConfiguration(); 
+        if (image.getColorModel().equals(gc.getColorModel())) { 
+            return image; 
+        } 
+        BufferedImage compatibleImage = gc.createCompatibleImage( 
+                image.getWidth(), image.getHeight(), 
+                image.getTransparency()); 
+        Graphics g = compatibleImage.getGraphics(); 
+        g.drawImage(image, 0, 0, null); 
+        g.dispose(); 
+        return compatibleImage; 
+    }
+
+    private static GraphicsConfiguration getConfiguration() { 
+        return GraphicsEnvironment.getLocalGraphicsEnvironment(). 
+                getDefaultScreenDevice().getDefaultConfiguration(); 
+    }
 }

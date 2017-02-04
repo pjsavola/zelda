@@ -9,7 +9,7 @@ import java.util.List;
 import javax.swing.Timer;
 
 public class GameTimer {
-	private static final int refreshRate = 20;
+	private static final int refreshRate = 10;
 	private final List<TimedEvent> eventQueue = new ArrayList<>();
 	private final Canvas game;
 	private final Timer timer;
