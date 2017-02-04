@@ -3,6 +3,7 @@ package pgs;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,7 +14,12 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-public class Trainer {
+public class Trainer implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	private static final int[] expRequired = {
 		1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 10000, 10000, 10000,
@@ -70,7 +76,7 @@ public class Trainer {
 		stats.put(result, stats.get(result) + modifier);
 	}
 
-	public void capture(final Canvas parent, final Pokemon p, final boolean razzberry) {
+	public void capture(final Game parent, final Pokemon p, final boolean razzberry) {
 		
 		// Create options for the dialog window
 		CatchItem[] options = CatchItem.values();
@@ -170,7 +176,7 @@ public class Trainer {
 		return totalExp;
 	}
 
-	private void gainXp(Canvas parent, int xp) {
+	private void gainXp(Game parent, int xp) {
 		parent.journal.amend(" + " + xp + " exp");
 		exp += xp;
 		while (level <= expRequired.length && exp >= expRequired[level - 1]) {
@@ -383,7 +389,7 @@ public class Trainer {
 		}
 	}
 
-	public void collect(Canvas parent, PokeStop stop) {
+	public void collect(Game parent, PokeStop stop) {
 		Integer visitCount = stopData.get(stop);
 		if (visitCount == null) {
 			visitCount = 0;

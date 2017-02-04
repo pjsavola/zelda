@@ -2,13 +2,15 @@ package pgs;
 
 import java.awt.Graphics;
 import java.awt.Image;
+import java.io.Serializable;
 
-public class PokeStop implements Renderable {
+public class PokeStop implements Renderable, Serializable {
+	private static final long serialVersionUID = 1L;
 
 	boolean available = true;
 	
 	@Override
-	public void click(Canvas parent, Trainer trainer) {
+	public void click(Game parent, Trainer trainer) {
 		if (available) {
 			trainer.collect(parent, this);
 			parent.getTimer().addTimedEvent(this, 10);
@@ -18,7 +20,7 @@ public class PokeStop implements Renderable {
 	}
 
 	@Override
-	public void event(Canvas parent) {
+	public void event(Game parent) {
 		available = true;
 		parent.repaint();
 	}

@@ -1,10 +1,12 @@
 package pgs;
 
 import java.awt.Graphics;
+import java.io.Serializable;
 
 import javax.swing.Icon;
 
-public class Pokemon implements Renderable {
+public class Pokemon implements Renderable, Serializable {
+	private static final long serialVersionUID = 1L;
 
 	private static double[] CPM = {
 			0.094,
@@ -170,7 +172,7 @@ public class Pokemon implements Renderable {
 	}
 
 	@Override
-	public void click(Canvas parent, Trainer trainer) {
+	public void click(Game parent, Trainer trainer) {
 		trainer.capture(parent, this, false);
 		final CaptureResult result = getStatus();
 		if (clickTime == null) {
@@ -187,7 +189,7 @@ public class Pokemon implements Renderable {
 	}
 
 	@Override
-	public void event(Canvas parent) {
+	public void event(Game parent) {
 		parent.removeRenderable(x, y);
 		parent.repaint();
 	}

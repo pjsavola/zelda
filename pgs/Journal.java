@@ -2,20 +2,25 @@ package pgs;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class Journal {
+public class Journal implements Serializable {
+	private static final long serialVersionUID = 1L;
+
+	private List<Entry> entries = new ArrayList<>();
 	
-	public static class Entry {
+	public static class Entry implements Serializable {
+		private static final long serialVersionUID = 1L;
+
 		private String text;
+
 		public Entry(String text) {
 			this.text = text;
 		}
 	}
-
-	private List<Entry> entries = new ArrayList<>();
 
 	void add(Entry entry) {
 		entries.add(0, entry);

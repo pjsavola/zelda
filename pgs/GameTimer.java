@@ -3,21 +3,26 @@ package pgs;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.Timer;
 
-public class GameTimer {
+public class GameTimer implements Serializable {
+	private static final long serialVersionUID = 1L;
 	private static final int refreshRate = 10;
 	private final List<TimedEvent> eventQueue = new ArrayList<>();
-	private final Canvas game;
-	private final Timer timer;
+	private final Game game;
+	private transient Timer timer;
 	private long time = 0;
 	private String timeString = timeToString(time);
 
-	public GameTimer(Canvas game) {
+	public GameTimer(Game game) {
 		this.game = game;
+	}
+
+	public void initialize() {
 		timer = new Timer(refreshRate, new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent event) {
@@ -27,7 +32,7 @@ public class GameTimer {
 				}
 			}
 		});
-		timer.start();
+		timer.start();		
 	}
 
 	// After delay number of game hours, invoke event-method for target.
@@ -105,7 +110,9 @@ public class GameTimer {
 		return extra0 + h + ":" + extra1 + mins;
 	}
 
-	private static class TimedEvent {
+	private static class TimedEvent implements Serializable {
+		private static final long serialVersionUID = 1L;
+
 		final Targetable target;
 		final long time;
 
@@ -118,7 +125,7 @@ public class GameTimer {
 			return time > this.time;
 		}
 
-		public void trigger(Canvas canvas) {
+		public void trigger(Game canvas) {
 			target.event(canvas);
 		}
 	}

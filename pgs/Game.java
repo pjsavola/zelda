@@ -5,49 +5,59 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 
-@SuppressWarnings("serial")
-public class Canvas extends JComponent {
-	private int width;
-	private int height;
-	private final int gridOffsetX = 8;
-	private final int gridOffsetY = 30;
-	private final int gridSize = 29;
-	private final int tileSize = Terrain.tileSize;
-	private final int playerSize = 11;
-	private final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
-	private final int middleCornerY = gridOffsetY + gridSize / 2 * tileSize;
-	private final int middleX = middleCornerX + tileSize / 2;
-	private final int middleY = middleCornerY + tileSize / 2;
-	private final int playerCornerX = middleX - playerSize / 2 - 1;
-	private final int playerCornerY = middleY - playerSize / 2 - 1;
-	
-	private double positionX = 5.0;
-	private double positionY = 5.0;
+public class Game extends JComponent {
+	private static final long serialVersionUID = 1L;
+
+	private transient int width;
+	private transient int height;
+	private double positionX;
+	private double positionY;
+
+	private static final int gridOffsetX = 8;
+	private static final int gridOffsetY = 30;
+	private static final int gridSize = 29;
+	private static final int tileSize = Terrain.tileSize;
+	private static final int playerSize = 11;
+	private static final int middleCornerX = gridOffsetX + gridSize / 2 * tileSize;
+	private static final int middleCornerY = gridOffsetY + gridSize / 2 * tileSize;
+	private static final int middleX = middleCornerX + tileSize / 2;
+	private static final int middleY = middleCornerY + tileSize / 2;
+	private static final int playerCornerX = middleX - playerSize / 2 - 1;
+	private static final int playerCornerY = middleY - playerSize / 2 - 1;
 
 	// Must be 15.0f or less or the window is too small to show everything.
 	private float vision = 15.0f;
 	
-	private Double targetX;
-	private Double targetY;
+	private transient Double targetX;
+	private transient Double targetY;
 
 	private Trainer trainer = new Trainer();
 	Journal journal = new Journal();
 	
-	private Vision visionCache;
-	
-	private Terrain[][] grid;
+	private transient Vision visionCache;
+
+	private String mapPath;
+	private transient Terrain[][] grid;
+	private transient BufferedImage[][] imageGrid;
 	private Renderable[][] renderableGrid;
-	private BufferedImage[][] imageGrid;
 
 	private final GameTimer timer = new GameTimer(this);
 
-	public Canvas() {
-		loadMap("images/world.png");
+	public Game(String mapPath) {
+		this.mapPath = mapPath;
 		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
+	    positionX = 30;
+	    positionY = 50;
+	}
+
+	public void initialize() {
+		loadMap();
+		timer.initialize();
 	}
 
 	private boolean collides(int x, int y) {
@@ -148,13 +158,16 @@ public class Canvas extends JComponent {
 		return (int) Math.floor(x + 0.5);
 	}
 
-	private void loadMap(String path) {
+	private void loadMap() {
+		boolean loadRenderables = renderableGrid == null;
 		try {
-			BufferedImage image = ImageIO.read(new File(path));
+			BufferedImage image = ImageIO.read(new File(mapPath));
 			width = image.getWidth();
 			height = image.getHeight();
 			grid = new Terrain[width][height];
-			renderableGrid = new Renderable[width][height];
+			if (loadRenderables) {
+				renderableGrid = new Renderable[width][height];
+			}
 			imageGrid = new BufferedImage[width][height];
 			for (int i = 0; i < width; i++) {
 				for (int j = 0; j < height; j++) {
@@ -170,18 +183,17 @@ public class Canvas extends JComponent {
 							break;
 						}
 					}
-					// 50% transparency is interpreted as a poke stop
-					int alpha = (pixel >> 24) & 0xff;
-					if (alpha == 0x7f) {
-						renderableGrid[i][j] = new PokeStop();
+					if (loadRenderables) {
+						// 50% transparency is interpreted as a poke stop
+						int alpha = (pixel >> 24) & 0xff;
+						if (alpha == 0x7f) {
+							renderableGrid[i][j] = new PokeStop();
+						}
 					}
 				}
 			}
-			// TODO: get starting position from map
-		    positionX = 30;
-		    positionY = 50;
 		} catch (IOException e) {
-			throw new RuntimeException("Map missing: " + path);
+			throw new RuntimeException("Map missing: " + mapPath);
 		}
 
 		// Create images for the whole map. 
@@ -208,7 +220,7 @@ public class Canvas extends JComponent {
 		final int maxX = Math.min(width, x + (int) vision);
 		final int minY = Math.max(0, y - (int) vision);
 		final int maxY = Math.min(height, y + (int) vision);
-
+		
 		// Recalculate vision if needed.
 		if (visionCache == null) {
 			visionCache = new Vision(minX, x, maxX, minY, y, maxY, grid, vision);
@@ -321,9 +333,11 @@ public class Canvas extends JComponent {
 		return fallback;
 	}
 
-	public class PokemonSpawnEvent implements Targetable {
+	public class PokemonSpawnEvent implements Targetable, Serializable {
+		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void event(Canvas canvas) {
+		public void event(Game game) {
 			spawnPokemon();
 			timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
 		}
