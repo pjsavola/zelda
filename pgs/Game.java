@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -350,7 +349,10 @@ public class Game extends JComponent {
 		}
 	}
 
-	protected void modify(int x, int y, Terrain tile, boolean fillMode) {
+	
+
+	protected Pair<Terrain, List<Pair<Integer, Integer>>> modify(int x, int y, Terrain tile, boolean fillMode) {
+		List<Pair<Integer, Integer>> modifiedPairs = new ArrayList<>();
 		double dx = x - Simulator.middleX;
 		double dy = y - Simulator.middleY;
 		double targetX = positionX + dx / Terrain.tileSize;
@@ -359,47 +361,64 @@ public class Game extends JComponent {
 		int py = map(targetY + 0.5);
 		final Terrain t = checkAndGetTerrain(px, py, null);
 		if (t != null && t != tile) {
-			if (fillMode) {
-				Set<List<Integer>> visitedPairs = new HashSet<>();
-				List<List<Integer>> workPairs = new ArrayList<>();
-				workPairs.add(Arrays.asList(px, py));
-				while (!workPairs.isEmpty()) {
-					visit(workPairs.remove(0), visitedPairs, workPairs, t);
+			Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>();
+			List<Pair<Integer, Integer>> workPairs = new ArrayList<>();
+			addWork(new Pair<Integer, Integer>(px, py), dirtyPairs, workPairs, t);
+			while (!workPairs.isEmpty()) {
+				final Pair<Integer, Integer> pair = workPairs.remove(0);
+				if (fillMode) {
+					visit(pair, dirtyPairs, workPairs, t);
 				}
-				for (List<Integer> pair : visitedPairs) {
-					modify(pair.get(0), pair.get(1), tile);
-				}
-			} else {
-				modify(px, py, tile);
+			}
+			modifiedPairs.addAll(dirtyPairs);
+			modify(modifiedPairs, tile, dirtyPairs);
+		}
+		return new Pair<Terrain, List<Pair<Integer, Integer>>>(t, modifiedPairs);
+	}
+
+	protected void modify(List<Pair<Integer, Integer>> modifiedPairs, Terrain terrain, Set<Pair<Integer, Integer>> dirtyPairs) {
+		for (Pair<Integer, Integer> pair : modifiedPairs) {
+			grid[pair.first][pair.second] = terrain;
+			addDirtyPairs(pair, dirtyPairs);
+		}
+		for (Pair<Integer, Integer> pair : dirtyPairs) {
+			modify(pair.first, pair.second);
+		}
+	}
+
+	private void visit(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
+		int px = pair.first;
+		int py = pair.second;
+		addWork(new Pair<Integer, Integer>(px + 1, py), dirtyPairs, workPairs, t);
+		addWork(new Pair<Integer, Integer>(px - 1, py), dirtyPairs, workPairs, t);
+		addWork(new Pair<Integer, Integer>(px, py + 1), dirtyPairs, workPairs, t);
+		addWork(new Pair<Integer, Integer>(px, py - 1), dirtyPairs, workPairs, t);
+	}
+
+	private void addWork(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
+		if (checkAndGetTerrain(pair.first, pair.second, null) == t) {
+			if (dirtyPairs.add(pair)) {
+				workPairs.add(pair);
 			}
 		}
 	}
 
-	private void visit(List<Integer> pair, Set<List<Integer>> visitedPairs, List<List<Integer>> workPairs, Terrain t) {
-		int px = pair.get(0);
-		int py = pair.get(1);
-		if (checkAndGetTerrain(px, py, null) == t) {
-			if (visitedPairs.add(pair)) {
-				workPairs.add(Arrays.asList(px + 1, py));
-				workPairs.add(Arrays.asList(px - 1, py));
-				workPairs.add(Arrays.asList(px, py + 1));
-				workPairs.add(Arrays.asList(px, py - 1));
-			}
-		}
-	}
-
-	private void modify(int x, int y, Terrain tile) {
-		grid[x][y] = tile;
-		imageGrid[x][y] = ImageBuilder.createImage(grid, x, y);
+	private void addDirtyPairs(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs) {
+		int x = pair.first;
+		int y = pair.second;
 		Terrain[] terrains = ImageBuilder.getAdjacentTerrains(grid, x, y);
-		if (terrains[1] != null) imageGrid[x - 1][y + 1] = ImageBuilder.createImage(grid, x - 1, y + 1);
-		if (terrains[2] != null) imageGrid[x    ][y + 1] = ImageBuilder.createImage(grid, x    , y + 1);
-		if (terrains[3] != null) imageGrid[x + 1][y + 1] = ImageBuilder.createImage(grid, x + 1, y + 1);
-		if (terrains[4] != null) imageGrid[x - 1][y    ] = ImageBuilder.createImage(grid, x - 1, y    );
-		if (terrains[6] != null) imageGrid[x + 1][y    ] = ImageBuilder.createImage(grid, x + 1, y    );
-		if (terrains[7] != null) imageGrid[x - 1][y - 1] = ImageBuilder.createImage(grid, x - 1, y - 1);
-		if (terrains[8] != null) imageGrid[x    ][y - 1] = ImageBuilder.createImage(grid, x    , y - 1);
-		if (terrains[9] != null) imageGrid[x + 1][y - 1] = ImageBuilder.createImage(grid, x + 1, y - 1);
+		if (terrains[1] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y + 1));
+		if (terrains[2] != null) dirtyPairs.add(new Pair<Integer, Integer>(x    , y + 1));
+		if (terrains[3] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y + 1));
+		if (terrains[4] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y    ));
+		if (terrains[6] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y    ));
+		if (terrains[7] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y - 1));
+		if (terrains[8] != null) dirtyPairs.add(new Pair<Integer, Integer>(x    , y - 1));
+		if (terrains[9] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y - 1));
+	}
+
+	private void modify(int x, int y) {
+		imageGrid[x][y] = ImageBuilder.createImage(grid, x, y);
 	}
 
 	public void removeRenderable(int x, int y) {

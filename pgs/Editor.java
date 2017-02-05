@@ -21,11 +21,16 @@ import java.awt.event.WindowListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -38,6 +43,7 @@ import javax.swing.JTextField;
 
 public class Editor extends Game {
 	private static final long serialVersionUID = 1L;
+	private Deque<Pair<Terrain, List<Pair<Integer, Integer>>>> undoStack = new ArrayDeque<>();
 	Float vision;
 	Terrain tile;
 	boolean editMode;
@@ -83,8 +89,11 @@ public class Editor extends Game {
 	@Override
 	public void click(int x, int y) {
 		if (editMode && tile != null) {
-			super.modify(x, y, tile, fillMode);
-			repaint(Simulator.mainArea);
+			Pair<Terrain, List<Pair<Integer, Integer>>> modifications = super.modify(x, y, tile, fillMode);
+			if (!modifications.second.isEmpty()) {
+				undoStack.push(modifications);
+				repaint(Simulator.mainArea);
+			}
 		} else {
 			super.click(x, y);
 		}
@@ -143,8 +152,8 @@ public class Editor extends Game {
 	    panel.setLayout(new GridLayout(size, size));
 	    final JDialog[] dialogArray = new JDialog[1];
 	    for (final Terrain terrain : themedTerrains) {
-	    	JButton button = new JButton(ImageCache.getTerrainIcon(terrain.getName()));
-	    	button.setBackground(Color.GRAY);
+	    	JButton button = new JButton(new ImageIcon(getImage(terrain)));
+	    	button.setBackground(Color.BLACK);
 	    	button.setPreferredSize(new Dimension(16, 16));
 	    	button.addActionListener(new ActionListener() {
 				@Override
@@ -159,19 +168,22 @@ public class Editor extends Game {
 	    }
 	    optionPane.add(panel, 1);
 	    JDialog dialog = optionPane.createDialog(this, "Select terrain");
+	    dialog.setBackground(Color.BLACK);
 	    dialogArray[0] = dialog;
 		dialog.setVisible(true);
 	}
 
+	private static BufferedImage getImage(Terrain terrain) {
+		if (terrain.getTheme() != null) {
+			return ImageCache.getLayeredTerrainImage(Arrays.asList(terrain.getTheme().getName(), terrain.getName()));
+		} else {
+			return ImageCache.getTerrainImage(terrain.getName());
+		}
+	}
+
 	private void changeCursor() {
 		if (editMode && tile != null) {
-			Toolkit toolkit = Toolkit.getDefaultToolkit();
-			Image image;
-			if (tile.getTheme() != null) {
-				image = ImageCache.getLayeredTerrainImage(Arrays.asList(tile.getTheme().getName(), tile.getName()));
-			} else {
-				image = ImageCache.getTerrainImage(tile.getName());
-			}		
+			Image image = getImage(tile);
 			if (fillMode) {
 				BufferedImage newImage = new BufferedImage(Terrain.tileSize, Terrain.tileSize, BufferedImage.TYPE_INT_ARGB);
 				Graphics g = newImage.getGraphics();
@@ -181,6 +193,7 @@ public class Editor extends Game {
 				g.dispose();
 				image = newImage;
 			}
+			Toolkit toolkit = Toolkit.getDefaultToolkit();
 			Cursor c = toolkit.createCustomCursor(image, new Point(getX(), getY()), "img");
 			setCursor(c);
 		} else {
@@ -279,6 +292,12 @@ public class Editor extends Game {
 			}
 			break;
 		case 'u': // undo
+			if (!undoStack.isEmpty()) {
+				Pair<Terrain, List<Pair<Integer, Integer>>> modifications = undoStack.pop();
+				Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>(modifications.second);
+				modify(modifications.second, modifications.first, dirtyPairs);
+				repaint(Simulator.mainArea);
+			}
 			break;
 		case 'v':
 			vision = vision == null ? 15.0f : null;
