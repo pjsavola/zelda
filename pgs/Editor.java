@@ -40,17 +40,30 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-
+// It was possible to implement an editor for the game itself by overriding a few methods.
 public class Editor extends Game {
 	private static final long serialVersionUID = 1L;
+
+	// Undo stack for terrain modifications
 	private Deque<Pair<Terrain, List<Pair<Integer, Integer>>>> undoStack = new ArrayDeque<>();
+
+	// Vision when the vision mode is enabled, or null if the mode is disabled.
 	Float vision;
+
+	// Currently selected Terrain or SpecialObject, or null if nothing is selected
 	Object tile;
+
+	// Mode for editing instead of moving when clicking.
 	boolean editMode;
+
+	// Mode for filling instead of editing when clicking. 
 	boolean fillMode;
-	Set<Pair<Integer, Integer>> pokeStops = new HashSet<>();
+
+	// Keeping track of starting location.
 	Pair<Integer, Integer> startingLocation = null;
-	Renderable start = new Renderable() {
+
+	// Dummy Renderable to render something for the starting location.
+	final Renderable start = new Renderable() {
 		@Override
 		public void click(Game game, Trainer trainer) {
 		}
@@ -63,11 +76,11 @@ public class Editor extends Game {
 		}
 		@Override
 		public void render(Graphics g, int x, int y) {
-			g.drawImage(ImageCache.getImage("images/Start.png"), x, y, null);
+			g.drawImage(SpecialObject.START.getImage(), x, y, null);
 		}
 		@Override
 		public int getAlphaMask() {
-			return 0x64ffffff;
+			return SpecialObject.START.getAlphaMask();
 		}
 	};
 
@@ -75,18 +88,21 @@ public class Editor extends Game {
 		super(mapPath);
 	}
 
+	// Return velocity which is comfortable for editing.
 	@Override
 	protected float getVelocity(Terrain tile) {
 		return 16.0f;
 	}
-	
+
+	// Update VisionCache only when vision mode is enabled.
 	@Override
 	protected void calculateVision(int minX, int x, int maxX, int minY, int y, int maxY, float vision) {
 		if (this.vision != null) {
 			super.calculateVision(minX, x, maxX, minY, y, maxY, vision);
 		}
 	}
-	
+
+	// Calculate light only when vision mode is enabled.
 	@Override
 	protected float getLight(double dx, double dy, int i, int j, float vision) {
 		if (this.vision != null) {
@@ -95,57 +111,204 @@ public class Editor extends Game {
 		return 1.0f;
 	}
 
+	// Returns vision which is large enough to see whole screen unless vision mode is enabled.
 	@Override
 	protected float getVision() {
 		if (this.vision != null) {
 			return this.vision;
 		}
-		return 30.0f;
+		// Just enough for 800 x 800 window.
+		return 27.0f;
 	}
 
+	// Disables click actions for all Renderables.
 	@Override
 	protected Renderable checkAndGetRenderable(int x, int y, Renderable fallback) {
 		return null;
+	}
+
+	// Disables spawning of Pokemon.
+	@Override
+	protected void spawn(PokemonSpawnEvent event) {
+	}
+
+	// Header contains some obsolete info, but coordinates are useful.
+	@Override
+	protected void paintHeader(Graphics g) {
+		super.paintHeader(g);
+	}
+
+	// Show commands in footer.
+	@Override
+	protected void paintFooter(Graphics g) {
+		g.drawString("1: Grass 2: Sand 3: Snow 4: Misc 5: Objects e: Edit f: Fill j: Jump l: Load n: New s: Save u: Undo v: Vision", 80, 795);
 	}
 
 	@Override
 	public void click(int x, int y) {
 		if (editMode && tile != null) {
 			if (tile instanceof SpecialObject) {
-				Pair<Integer, Integer> indices = super.getIndices(x, y);
-				if (!check(indices.first, indices.second)) {
-					return;
-				}
-				switch ((SpecialObject) tile) {
-				case EMPTY:
-					modifyRenderable(indices.first, indices.second, null);
-					break;
-				case POKESTOP:
-					modifyRenderable(indices.first, indices.second, new PokeStop());
-					break;
-				case START:
-					if (!indices.equals(startingLocation)) {
-						if (startingLocation != null) {
-							modifyRenderable(startingLocation.first, startingLocation.second, null);
-						}
-						modifyRenderable(indices.first, indices.second, start);
-					}
-					startingLocation = indices;
-					break;
-				}
-				repaint(Simulator.mainArea);
+				createSpecialObject((SpecialObject) tile, x, y);
 			} else if (tile instanceof Terrain) {
-				final Pair<Terrain, List<Pair<Integer, Integer>>> modifications =
-					super.modify(x, y, (Terrain) tile, fillMode);
-				if (!modifications.second.isEmpty()) {
-					undoStack.push(modifications);
-					clearVisionCache();
-					repaint(Simulator.mainArea);
-				}				
+				createTerrain((Terrain) tile, x, y);
 			}
 		} else {
 			super.click(x, y);
 		}
+	}
+
+	@Override
+	public void press(char c) {
+		switch (c) {
+		case '1':
+			showTileSelectionDialog(Terrain.GRASS);
+			break;
+		case '2':
+			showTileSelectionDialog(Terrain.SAND);
+			break;
+		case '3':
+			showTileSelectionDialog(Terrain.SNOW);
+			break;
+		case '4':
+			showTileSelectionDialog(null);
+			break;
+		case '5':
+			showSpecialObjectSelectionDialog();
+			break;
+		case 'e':
+			if (tile != null) {
+				editMode = !editMode;
+				fillMode = false;
+				changeCursor();
+			}
+			break;
+		case 'f':
+			if (editMode && tile instanceof Terrain) {
+				fillMode = !fillMode;
+				changeCursor();
+			}
+			break;
+		case 'j': // Jump to
+			stopMoving();
+			List<Integer> jumpResult = showIntegerFormDialog("Jump to ...", "Select destination", new String[] {"X:", "Y:"});
+			if (jumpResult.size() != 2) {
+				break;
+			}
+			setPosition(jumpResult.get(0), jumpResult.get(1));
+			repaint(Simulator.mainArea);
+			break;
+		case 'l': // Load map
+			stopMoving();
+			JFileChooser loadFileChooser = new JFileChooser();
+			loadFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+			int loadResult = loadFileChooser.showOpenDialog(this);
+			if (loadResult == JFileChooser.APPROVE_OPTION) {
+			    File selectedFile = loadFileChooser.getSelectedFile();
+				try {
+					BufferedImage mapImage = ImageIO.read(selectedFile);
+				    startingLocation = loadMap(mapImage, true);
+				    if (startingLocation != null) {
+				    	setPosition(startingLocation.first, startingLocation.second);
+				    	modifyRenderable(startingLocation.first, startingLocation.second, start);
+				    } else {
+				    	setPosition(0, 0);
+				    }
+				    clearVisionCache();
+				    tile = null;
+				    editMode = false;
+				    fillMode = false;
+				    repaint(Simulator.mainArea);
+				} catch (IOException e) {
+					System.err.println("Failed to load: " + selectedFile.getAbsolutePath());
+				}
+			}
+			break;
+		case 'n': // New map
+			stopMoving();
+			List<Integer> newResult = showIntegerFormDialog("New map ...", "Select dimensions for the new map", new String[] {"Width:", "Height:"});
+			if (newResult.size() != 2) {
+				break;
+			}
+			int x = newResult.get(0);
+			int y = newResult.get(1);
+			if (x < 20 || x > 1000 || y < 20 || y > 1000) {
+				System.err.println("Map too large");
+				break;
+			}
+			BufferedImage blankImage = new BufferedImage(x, y, BufferedImage.TYPE_INT_ARGB);
+			Graphics g = blankImage.getGraphics();
+			g.setColor(Color.BLUE);
+			g.fillRect(0, 0, x, y);
+			loadMap(blankImage, true);
+			clearVisionCache();
+		    tile = null;
+		    editMode = false;
+		    fillMode = false;
+			repaint(Simulator.mainArea);
+			break;
+		case 's': // Save map
+			stopMoving();
+			JFileChooser saveFileChooser = new JFileChooser();
+			saveFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+			int saveResult = saveFileChooser.showSaveDialog(this);
+			if (saveResult == JFileChooser.APPROVE_OPTION) {
+				File selectedFile = saveFileChooser.getSelectedFile();
+				BufferedImage mapImage = getMapAsImage();
+				try {
+					ImageIO.write(mapImage, "png", selectedFile);
+				} catch (IOException e) {
+					System.err.println("Failed to save: " + selectedFile.getAbsolutePath());
+				}
+			}
+			break;
+		case 'u': // undo
+			if (!undoStack.isEmpty()) {
+				Pair<Terrain, List<Pair<Integer, Integer>>> modifications = undoStack.pop();
+				Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>(modifications.second);
+				modify(modifications.second, modifications.first, dirtyPairs);
+				repaint(Simulator.mainArea);
+			}
+			break;
+		case 'v':
+			vision = vision == null ? 15.0f : null;
+			repaint(Simulator.mainArea);
+			break;
+	    }
+	}
+
+	private void createSpecialObject(SpecialObject o, int x, int y) {
+		final Pair<Integer, Integer> indices = super.getIndices(x, y);
+		if (!check(indices.first, indices.second)) {
+			return;
+		}
+		switch (o) {
+		case EMPTY:
+			modifyRenderable(indices.first, indices.second, null);
+			break;
+		case POKESTOP:
+			modifyRenderable(indices.first, indices.second, new PokeStop());
+			break;
+		case START:
+			if (!indices.equals(startingLocation)) {
+				if (startingLocation != null) {
+					modifyRenderable(startingLocation.first, startingLocation.second, null);
+				}
+				modifyRenderable(indices.first, indices.second, start);
+			}
+			startingLocation = indices;
+			break;
+		}
+		repaint(Simulator.mainArea);
+	}
+
+	private void createTerrain(Terrain terrain, int x, int y) {
+		final Pair<Terrain, List<Pair<Integer, Integer>>> modifications =
+			super.modify(x, y, terrain, fillMode);
+		if (!modifications.second.isEmpty()) {
+			undoStack.push(modifications);
+			clearVisionCache();
+			repaint(Simulator.mainArea);
+		}				
 	}
 
 	private List<Integer> showIntegerFormDialog(String title, String message, String[] labels) {
@@ -262,7 +425,7 @@ public class Editor extends Game {
 		} else if (tile instanceof SpecialObject) {
 			return ((SpecialObject) tile).getImage();
 		}
-		return null;
+		throw new RuntimeException("Invalid tile type");
 	}
 
 	private void changeCursor() {
@@ -284,132 +447,6 @@ public class Editor extends Game {
 			setCursor(Cursor.getDefaultCursor());
 		}
 		repaint();
-	}
-
-	@Override
-	public void press(char c) {
-		switch (c) {
-		case '1':
-			showTileSelectionDialog(Terrain.GRASS);
-			break;
-		case '2':
-			showTileSelectionDialog(Terrain.SAND);
-			break;
-		case '3':
-			showTileSelectionDialog(Terrain.SNOW);
-			break;
-		case '4':
-			showTileSelectionDialog(null);
-			break;
-		case '5':
-			showSpecialObjectSelectionDialog();
-			break;
-		case 'e':
-			if (tile != null) {
-				editMode = !editMode;
-				fillMode = false;
-				changeCursor();
-			}
-			break;
-		case 'f':
-			if (editMode && tile != null) {
-				fillMode = !fillMode;
-				changeCursor();
-			}
-			break;
-		case 'j': // Jump to
-			stopMoving();
-			List<Integer> jumpResult = showIntegerFormDialog("Jump to ...", "Select destination", new String[] {"X:", "Y:"});
-			if (jumpResult.size() != 2) {
-				break;
-			}
-			setPosition(jumpResult.get(0), jumpResult.get(1));
-			repaint(Simulator.mainArea);
-			break;
-		case 'l': // Load map
-			stopMoving();
-			JFileChooser loadFileChooser = new JFileChooser();
-			loadFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-			int loadResult = loadFileChooser.showOpenDialog(this);
-			if (loadResult == JFileChooser.APPROVE_OPTION) {
-			    File selectedFile = loadFileChooser.getSelectedFile();
-				try {
-					BufferedImage mapImage = ImageIO.read(selectedFile);
-				    startingLocation = loadMap(mapImage, true);
-				    if (startingLocation != null) {
-				    	setPosition(startingLocation.first, startingLocation.second);
-				    } else {
-				    	setPosition(0, 0);
-				    }
-				    clearVisionCache();
-				    repaint(Simulator.mainArea);
-				} catch (IOException e) {
-					System.err.println("Failed to load: " + selectedFile.getAbsolutePath());
-				}
-			}
-			break;
-		case 'n': // New map
-			stopMoving();
-			List<Integer> newResult = showIntegerFormDialog("New map ...", "Select dimensions for the new map", new String[] {"Width:", "Height:"});
-			if (newResult.size() != 2) {
-				break;
-			}
-			int x = newResult.get(0);
-			int y = newResult.get(1);
-			if (x < 20 || x > 1000 || y < 20 || y > 1000) {
-				System.err.println("Map too large");
-				break;
-			}
-			BufferedImage blankImage = new BufferedImage(x, y, BufferedImage.TYPE_INT_ARGB);
-			Graphics g = blankImage.getGraphics();
-			g.setColor(Color.BLUE);
-			g.fillRect(0, 0, x, y);
-			loadMap(blankImage, true);
-			clearVisionCache();
-			repaint(Simulator.mainArea);
-			break;
-		case 's': // Save map
-			stopMoving();
-			JFileChooser saveFileChooser = new JFileChooser();
-			saveFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-			int saveResult = saveFileChooser.showSaveDialog(this);
-			if (saveResult == JFileChooser.APPROVE_OPTION) {
-				File selectedFile = saveFileChooser.getSelectedFile();
-				BufferedImage mapImage = getMapAsImage();
-				try {
-					ImageIO.write(mapImage, "png", selectedFile);
-				} catch (IOException e) {
-					System.err.println("Failed to save: " + selectedFile.getAbsolutePath());
-				}
-			}
-			break;
-		case 'u': // undo
-			if (!undoStack.isEmpty()) {
-				Pair<Terrain, List<Pair<Integer, Integer>>> modifications = undoStack.pop();
-				Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>(modifications.second);
-				modify(modifications.second, modifications.first, dirtyPairs);
-				repaint(Simulator.mainArea);
-			}
-			break;
-		case 'v':
-			vision = vision == null ? 15.0f : null;
-			repaint(Simulator.mainArea);
-			break;
-	    }
-	}
-
-	@Override
-	protected void paintHeader(Graphics g) {
-		super.paintHeader(g);
-	}
-
-	@Override
-	protected void paintFooter(Graphics g) {
-		g.drawString("1: Grass 2: Sand 3: Snow 4: Misc e: Edit mode f: Fill mode j: Jump to l: Load n: New map s: Save u: Undo v: Toggle vision", 15, 795);
-	}
-
-	@Override
-	protected void spawn(PokemonSpawnEvent event) {
 	}
 
 	public static void main(String[] args) {

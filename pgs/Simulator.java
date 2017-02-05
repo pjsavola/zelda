@@ -144,7 +144,7 @@ public class Simulator {
 	public static void setGridConstants(int x, int y, int size) {
 		int gridOffsetX = x;
 		int gridOffsetY = y;
-		int gridSize = (windowWidth - 1) / Terrain.tileSize; // 29
+		int gridSize = (windowWidth - 1) / Terrain.tileSize; // 480 -> 29, 800 -> 49
 		playerSize = size;
 		middleCornerX = gridOffsetX + gridSize / 2 * Terrain.tileSize;
 		middleCornerY = gridOffsetY + gridSize / 2 * Terrain.tileSize;
