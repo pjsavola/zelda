@@ -197,4 +197,9 @@ public class Pokemon implements Renderable, Serializable {
 	public PokemonKind getKind() {
 		return kind;
 	}
+
+	@Override
+	public int getAlphaMask() {
+		return 0xffffffff;
+	}
 }

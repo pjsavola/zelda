@@ -42,12 +42,16 @@ public class Game extends JComponent {
 	public Game(String mapPath) {
 		this.mapPath = mapPath;
 		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
-	    initialize(true);
+	    final Pair<Integer, Integer> startingLocation = initialize(true);
+	    positionX = startingLocation == null ? 0 : startingLocation.first;
+	    positionY = startingLocation == null ? 0 : startingLocation.second;
 	}
 
-	public void initialize(boolean loadRenderables) {
-		loadMap(createMapImage(), loadRenderables);
+	public Pair<Integer, Integer> initialize(boolean loadRenderables) {
+		final Pair<Integer, Integer> startingLocation =
+			loadMap(createMapImage(), loadRenderables);
 		timer.initialize();
+		return startingLocation;
 	}
 
 	protected BufferedImage createMapImage() {
@@ -179,14 +183,13 @@ public class Game extends JComponent {
 		}
 	}
 
-	protected void loadMap(BufferedImage image, boolean loadRenderables) {
+	protected Pair<Integer, Integer> loadMap(BufferedImage image, boolean loadRenderables) {
+		Pair<Integer, Integer> startingLocation = null;
 		width = image.getWidth();
 		height = image.getHeight();
 		grid = new Terrain[width][height];
 		if (loadRenderables) {
 			renderableGrid = new Renderable[width][height];
-			positionX = 0;
-			positionY = 0;
 		}
 		imageGrid = new BufferedImage[width][height];
 		for (int i = 0; i < width; i++) {
@@ -198,20 +201,20 @@ public class Game extends JComponent {
 			    //int blue = (pixel) & 0xff;
 				grid[i][j] = Terrain.WATER;
 				for (Terrain t : Terrain.values()) {
-					if (pixel == t.getMask()) {
+					if ((pixel | 0xff000000) == t.getMask()) {
 						grid[i][j] = t;
 						break;
 					}
 				}
+				int alpha = (pixel >> 24) & 0xff;
 				if (loadRenderables) {
 					// 50% transparency is interpreted as a poke stop
-					int alpha = (pixel >> 24) & 0xff;
 					if (alpha == 0x7f) {
 						renderableGrid[i][j] = new PokeStop();
-					} else if (alpha == 0x64) {
-						positionX = i;
-						positionY = j;
 					}
+				}
+				if (startingLocation == null && alpha == 0x64) {
+					startingLocation = new Pair<Integer, Integer>(i, j);
 				}
 			}
 		}
@@ -222,6 +225,7 @@ public class Game extends JComponent {
 				imageGrid[i][j] = ImageBuilder.createImage(grid, i, j);
 			}
 		}
+		return startingLocation;
 	}
 
 	protected BufferedImage getMapAsImage() {
@@ -229,11 +233,14 @@ public class Game extends JComponent {
 		Graphics g = image.getGraphics();
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
+				final Renderable r = renderableGrid[i][j];
 				int mask = grid[i][j].getMask();
-				g.setColor(new Color(mask, true));
-				g.drawRect(i, j, 1, 1);
+				int alphaMask = r == null ? 0xffffffff : r.getAlphaMask();
+				g.setColor(new Color(mask & alphaMask, true));
+				g.fillRect(i, j, 1, 1);
 			}
 		}
+		g.dispose();
 		return image;
 	}
 
@@ -349,21 +356,28 @@ public class Game extends JComponent {
 		}
 	}
 
-	
+	protected void modifyRenderable(int x, int y, Renderable r) {
+		renderableGrid[x][y] = r;
+	}
 
-	protected Pair<Terrain, List<Pair<Integer, Integer>>> modify(int x, int y, Terrain tile, boolean fillMode) {
-		List<Pair<Integer, Integer>> modifiedPairs = new ArrayList<>();
+	protected Pair<Integer, Integer> getIndices(int x, int y) {
 		double dx = x - Simulator.middleX;
 		double dy = y - Simulator.middleY;
 		double targetX = positionX + dx / Terrain.tileSize;
 		double targetY = positionY + dy / Terrain.tileSize;
 		int px = map(targetX + 0.5);
 		int py = map(targetY + 0.5);
-		final Terrain t = checkAndGetTerrain(px, py, null);
+		return new Pair<Integer, Integer>(px, py);
+	}
+
+	protected Pair<Terrain, List<Pair<Integer, Integer>>> modify(int x, int y, Terrain tile, boolean fillMode) {
+		final List<Pair<Integer, Integer>> modifiedPairs = new ArrayList<>();
+		final Pair<Integer, Integer> indices = getIndices(x, y);
+		final Terrain t = checkAndGetTerrain(indices.first, indices.second, null);
 		if (t != null && t != tile) {
 			Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>();
 			List<Pair<Integer, Integer>> workPairs = new ArrayList<>();
-			addWork(new Pair<Integer, Integer>(px, py), dirtyPairs, workPairs, t);
+			addWork(new Pair<Integer, Integer>(indices.first, indices.second), dirtyPairs, workPairs, t);
 			while (!workPairs.isEmpty()) {
 				final Pair<Integer, Integer> pair = workPairs.remove(0);
 				if (fillMode) {
@@ -433,15 +447,19 @@ public class Game extends JComponent {
 		return timer;
 	}
 
+	protected boolean check(int x, int y) {
+		return x >= 0 && y >= 0 && x < width && y < height;
+	}
+
 	private Terrain checkAndGetTerrain(int x, int y, Terrain fallback) {
-		if (x >= 0 && y >= 0 && x < width && y < height) {
+		if (check(x, y)) {
 			return grid[x][y];
 		}
 		return fallback;
 	}
 
 	protected Renderable checkAndGetRenderable(int x, int y, Renderable fallback) {
-		if (x >= 0 && y >= 0 && x < width && y < height) {
+		if (check(x, y)) {
 			return renderableGrid[x][y];
 		}
 		return fallback;

@@ -40,4 +40,7 @@ public class PokeStop implements Renderable, Serializable {
 		g.drawImage(image, x, y, null);
 	}
 
+	public int getAlphaMask() {
+		return 0x7fffffff;
+	}
 }

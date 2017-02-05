@@ -45,9 +45,31 @@ public class Editor extends Game {
 	private static final long serialVersionUID = 1L;
 	private Deque<Pair<Terrain, List<Pair<Integer, Integer>>>> undoStack = new ArrayDeque<>();
 	Float vision;
-	Terrain tile;
+	Object tile;
 	boolean editMode;
 	boolean fillMode;
+	Set<Pair<Integer, Integer>> pokeStops = new HashSet<>();
+	Pair<Integer, Integer> startingLocation = null;
+	Renderable start = new Renderable() {
+		@Override
+		public void click(Game game, Trainer trainer) {
+		}
+		@Override
+		public void event(Game game) {
+		}
+		@Override
+		public boolean isVisible(float light) {
+			return true;
+		}
+		@Override
+		public void render(Graphics g, int x, int y) {
+			g.drawImage(ImageCache.getImage("images/Start.png"), x, y, null);
+		}
+		@Override
+		public int getAlphaMask() {
+			return 0x64ffffff;
+		}
+	};
 
 	public Editor(String mapPath) {
 		super(mapPath);
@@ -89,10 +111,37 @@ public class Editor extends Game {
 	@Override
 	public void click(int x, int y) {
 		if (editMode && tile != null) {
-			Pair<Terrain, List<Pair<Integer, Integer>>> modifications = super.modify(x, y, tile, fillMode);
-			if (!modifications.second.isEmpty()) {
-				undoStack.push(modifications);
+			if (tile instanceof SpecialObject) {
+				Pair<Integer, Integer> indices = super.getIndices(x, y);
+				if (!check(indices.first, indices.second)) {
+					return;
+				}
+				switch ((SpecialObject) tile) {
+				case EMPTY:
+					modifyRenderable(indices.first, indices.second, null);
+					break;
+				case POKESTOP:
+					modifyRenderable(indices.first, indices.second, new PokeStop());
+					break;
+				case START:
+					if (!indices.equals(startingLocation)) {
+						if (startingLocation != null) {
+							modifyRenderable(startingLocation.first, startingLocation.second, null);
+						}
+						modifyRenderable(indices.first, indices.second, start);
+					}
+					startingLocation = indices;
+					break;
+				}
 				repaint(Simulator.mainArea);
+			} else if (tile instanceof Terrain) {
+				final Pair<Terrain, List<Pair<Integer, Integer>>> modifications =
+					super.modify(x, y, (Terrain) tile, fillMode);
+				if (!modifications.second.isEmpty()) {
+					undoStack.push(modifications);
+					clearVisionCache();
+					repaint(Simulator.mainArea);
+				}				
 			}
 		} else {
 			super.click(x, y);
@@ -168,23 +217,58 @@ public class Editor extends Game {
 	    }
 	    optionPane.add(panel, 1);
 	    JDialog dialog = optionPane.createDialog(this, "Select terrain");
-	    dialog.setBackground(Color.BLACK);
 	    dialogArray[0] = dialog;
 		dialog.setVisible(true);
 	}
 
-	private static BufferedImage getImage(Terrain terrain) {
-		if (terrain.getTheme() != null) {
-			return ImageCache.getLayeredTerrainImage(Arrays.asList(terrain.getTheme().getName(), terrain.getName()));
-		} else {
-			return ImageCache.getTerrainImage(terrain.getName());
+	private void showSpecialObjectSelectionDialog() {
+		JOptionPane optionPane = new JOptionPane();
+		optionPane.setMessage("Select object");
+		optionPane.setOptions(new String[] {"Cancel"});
+	    JPanel panel = new JPanel();
+	    SpecialObject[] objects = SpecialObject.values();
+	    int size = (int) Math.ceil(Math.sqrt(objects.length));
+	    panel.setLayout(new GridLayout(size, size));
+	    final JDialog[] dialogArray = new JDialog[1];
+	    for (final SpecialObject object : objects) {
+	    	JButton button = new JButton(new ImageIcon(object.getImage()));
+	    	button.setBackground(Color.BLACK);
+	    	button.setPreferredSize(new Dimension(16, 16));
+	    	button.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent arg0) {
+					tile = object;
+					editMode = true;
+					changeCursor();
+					dialogArray[0].dispose();
+				}
+	    	});
+	    	panel.add(button);
+	    }
+	    optionPane.add(panel, 1);
+	    JDialog dialog = optionPane.createDialog(this, "Select object");
+	    dialogArray[0] = dialog;
+		dialog.setVisible(true);
+	}
+
+	private static BufferedImage getImage(Object tile) {
+		if (tile instanceof Terrain) {
+			Terrain terrain = (Terrain) tile;
+			if (terrain.getTheme() != null) {
+				return ImageCache.getLayeredTerrainImage(Arrays.asList(terrain.getTheme().getName(), terrain.getName()));
+			} else {
+				return ImageCache.getTerrainImage(terrain.getName());
+			}
+		} else if (tile instanceof SpecialObject) {
+			return ((SpecialObject) tile).getImage();
 		}
+		return null;
 	}
 
 	private void changeCursor() {
 		if (editMode && tile != null) {
 			Image image = getImage(tile);
-			if (fillMode) {
+			if (fillMode && tile instanceof Terrain) {
 				BufferedImage newImage = new BufferedImage(Terrain.tileSize, Terrain.tileSize, BufferedImage.TYPE_INT_ARGB);
 				Graphics g = newImage.getGraphics();
 				g.drawImage(image, 0, 0, null);
@@ -217,6 +301,9 @@ public class Editor extends Game {
 		case '4':
 			showTileSelectionDialog(null);
 			break;
+		case '5':
+			showSpecialObjectSelectionDialog();
+			break;
 		case 'e':
 			if (tile != null) {
 				editMode = !editMode;
@@ -248,7 +335,12 @@ public class Editor extends Game {
 			    File selectedFile = loadFileChooser.getSelectedFile();
 				try {
 					BufferedImage mapImage = ImageIO.read(selectedFile);
-				    loadMap(mapImage, true);
+				    startingLocation = loadMap(mapImage, true);
+				    if (startingLocation != null) {
+				    	setPosition(startingLocation.first, startingLocation.second);
+				    } else {
+				    	setPosition(0, 0);
+				    }
 				    clearVisionCache();
 				    repaint(Simulator.mainArea);
 				} catch (IOException e) {
@@ -313,6 +405,7 @@ public class Editor extends Game {
 
 	@Override
 	protected void paintFooter(Graphics g) {
+		g.drawString("1: Grass 2: Sand 3: Snow 4: Misc e: Edit mode f: Fill mode j: Jump to l: Load n: New map s: Save u: Undo v: Toggle vision", 15, 795);
 	}
 
 	@Override
