@@ -17,49 +17,101 @@ import javax.swing.JComponent;
 public class Game extends JComponent {
 	private static final long serialVersionUID = 1L;
 
+	// These are initialized by loadMap
 	private transient int width;
 	private transient int height;
-	private double positionX;
-	private double positionY;
+	private transient Terrain[][] grid;
+	private transient BufferedImage[][] imageGrid;
+
+	private transient Double targetX;
+	private transient Double targetY;
+	private transient Vision visionCache;
+	protected transient TerrainMutator mutator = new TerrainMutator();
 
 	// Must be 15.0f or less or the window is too small to show everything.
 	private float vision = 15.0f;
-	
-	private transient Double targetX;
-	private transient Double targetY;
-
-	private Trainer trainer = new Trainer();
-	
-	private transient Vision visionCache;
-
-	private String mapPath;
-	private transient Terrain[][] grid;
-	private transient BufferedImage[][] imageGrid;
+	private double positionX;
+	private double positionY;
+	private final Trainer trainer = new Trainer();
+	private final String mapPath;
+	private final GameTimer timer = new GameTimer(this);
 	private Renderable[][] renderableGrid;
 
-	private final GameTimer timer = new GameTimer(this);
-
-	public Game(String mapPath) {
-		this.mapPath = mapPath;
+	// Used when starting a new game.
+	public Game(final String mapPath) {
+		this(mapPath, createMapImage(mapPath));
 		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
-	    final Pair<Integer, Integer> startingLocation = initialize(true);
-	    positionX = startingLocation == null ? 0 : startingLocation.first;
-	    positionY = startingLocation == null ? 0 : startingLocation.second;
 	}
 
-	public Pair<Integer, Integer> initialize(boolean loadRenderables) {
-		final Pair<Integer, Integer> startingLocation =
-			loadMap(createMapImage(), loadRenderables);
+	// Used by the editor.
+	protected Game(final BufferedImage mapImage) {
+		this(null, mapImage);
+	}
+
+	private Game(final String mapPath, final BufferedImage mapImage) {
+		this.mapPath = mapPath;
 		timer.initialize();
-		return startingLocation;
+	    setPosition(loadMap(mapImage, true));
 	}
 
-	protected BufferedImage createMapImage() {
+	// Called when loading a game.
+	public void initialize() {
+		timer.initialize();
+		loadMap(createMapImage(mapPath), false);
+	}
+
+	private static BufferedImage createMapImage(final String mapPath) {
 		try {
 			return ImageIO.read(new File(mapPath));
 		} catch (IOException e) {
 			throw new RuntimeException("Map missing: " + mapPath);
 		}
+	}
+
+	// Returns the starting position or (0, 0) if it's not specified.
+	protected Pair<Integer, Integer> loadMap(BufferedImage image, boolean loadRenderables) {
+		Pair<Integer, Integer> startingLocation = null;
+		width = image.getWidth();
+		height = image.getHeight();
+		grid = new Terrain[width][height];
+		if (loadRenderables) {
+			renderableGrid = new Renderable[width][height];
+		}
+		imageGrid = new BufferedImage[width][height];
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				int pixel = image.getRGB(i, j);
+				grid[i][j] = Terrain.WATER; // default to water
+				for (Terrain t : Terrain.values()) {
+					if ((pixel | 0xff000000) == t.getMask()) {
+						grid[i][j] = t;
+						break;
+					}
+				}
+				int alphaMask = pixel | 0x00ffffff;
+				if (loadRenderables) {
+					if (alphaMask == SpecialObject.POKESTOP.getAlphaMask()) {
+						renderableGrid[i][j] = new PokeStop();					
+					}
+				}
+				if (startingLocation == null) {
+					if (alphaMask == SpecialObject.START.getAlphaMask()) {
+						startingLocation = Pair.intPair(i, j);
+					}
+				}
+			}
+		}
+
+		// Create images for the whole map. 
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				imageGrid[i][j] = ImageBuilder.createImage(grid, i, j);
+			}
+		}
+		if (startingLocation == null) {
+			return Pair.intPair(0, 0);
+		}
+		return startingLocation;
 	}
 
 	protected float getVelocity(Terrain tile) {
@@ -90,7 +142,7 @@ public class Game extends JComponent {
 		}
 		return false;
 	}
-	
+
 	// Returns the spent time.
 	public double move(int refreshRate) {
 		// Target set at all?
@@ -162,7 +214,7 @@ public class Game extends JComponent {
 		return spentTime;
 
 	}
-	
+
 	private static int map(double x) {
 		return (int) Math.floor(x + 0.5);
 	}
@@ -176,56 +228,9 @@ public class Game extends JComponent {
 		targetY = null;
 	}
 
-	protected void setPosition(int x, int y) {
-		if (x >= 0 && x < width && y >= 0 && y < width) {
-			positionX = x;
-			positionY = y;
-		}
-	}
-
-	protected Pair<Integer, Integer> loadMap(BufferedImage image, boolean loadRenderables) {
-		Pair<Integer, Integer> startingLocation = null;
-		width = image.getWidth();
-		height = image.getHeight();
-		grid = new Terrain[width][height];
-		if (loadRenderables) {
-			renderableGrid = new Renderable[width][height];
-		}
-		imageGrid = new BufferedImage[width][height];
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				int pixel = image.getRGB(i, j);
-				//int alpha = (pixel >> 24) & 0xff;
-			    //int red = (pixel >> 16) & 0xff;
-			    //int green = (pixel >> 8) & 0xff;
-			    //int blue = (pixel) & 0xff;
-				grid[i][j] = Terrain.WATER;
-				for (Terrain t : Terrain.values()) {
-					if ((pixel | 0xff000000) == t.getMask()) {
-						grid[i][j] = t;
-						break;
-					}
-				}
-				int alpha = (pixel >> 24) & 0xff;
-				if (loadRenderables) {
-					// 50% transparency is interpreted as a poke stop
-					if (alpha == 0x7f) {
-						renderableGrid[i][j] = new PokeStop();
-					}
-				}
-				if (startingLocation == null && alpha == 0x64) {
-					startingLocation = new Pair<Integer, Integer>(i, j);
-				}
-			}
-		}
-
-		// Create images for the whole map. 
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				imageGrid[i][j] = ImageBuilder.createImage(grid, i, j);
-			}
-		}
-		return startingLocation;
+	protected void setPosition(final Pair<Integer, Integer> pos) {
+		positionX = pos.first;
+		positionY = pos.second;
 	}
 
 	protected BufferedImage getMapAsImage() {
@@ -356,83 +361,86 @@ public class Game extends JComponent {
 		}
 	}
 
-	protected void modifyRenderable(int x, int y, Renderable r) {
-		renderableGrid[x][y] = r;
-	}
+	// Helper class for mutating terrain after initialization.
+	protected class TerrainMutator {
+		protected void modifyRenderable(Pair<Integer, Integer> pos, Renderable r) {
+			renderableGrid[pos.first][pos.second] = r;
+		}
 
-	protected Pair<Integer, Integer> getIndices(int x, int y) {
-		double dx = x - Simulator.middleX;
-		double dy = y - Simulator.middleY;
-		double targetX = positionX + dx / Terrain.tileSize;
-		double targetY = positionY + dy / Terrain.tileSize;
-		int px = map(targetX + 0.5);
-		int py = map(targetY + 0.5);
-		return new Pair<Integer, Integer>(px, py);
-	}
+		protected Pair<Integer, Integer> getCursorIndices(int x, int y) {
+			double dx = x - Simulator.middleX;
+			double dy = y - Simulator.middleY;
+			double targetX = positionX + dx / Terrain.tileSize;
+			double targetY = positionY + dy / Terrain.tileSize;
+			int px = map(targetX + 0.5);
+			int py = map(targetY + 0.5);
+			return Pair.intPair(px, py);
+		}
 
-	protected Pair<Terrain, List<Pair<Integer, Integer>>> modify(int x, int y, Terrain tile, boolean fillMode) {
-		final List<Pair<Integer, Integer>> modifiedPairs = new ArrayList<>();
-		final Pair<Integer, Integer> indices = getIndices(x, y);
-		final Terrain t = checkAndGetTerrain(indices.first, indices.second, null);
-		if (t != null && t != tile) {
-			Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>();
-			List<Pair<Integer, Integer>> workPairs = new ArrayList<>();
-			addWork(new Pair<Integer, Integer>(indices.first, indices.second), dirtyPairs, workPairs, t);
-			while (!workPairs.isEmpty()) {
-				final Pair<Integer, Integer> pair = workPairs.remove(0);
-				if (fillMode) {
-					visit(pair, dirtyPairs, workPairs, t);
+		protected Pair<Terrain, List<Pair<Integer, Integer>>> modify(int x, int y, Terrain tile, boolean fillMode) {
+			final List<Pair<Integer, Integer>> modifiedPairs = new ArrayList<>();
+			final Pair<Integer, Integer> indices = getCursorIndices(x, y);
+			final Terrain t = checkAndGetTerrain(indices.first, indices.second, null);
+			if (t != null && t != tile) {
+				Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>();
+				List<Pair<Integer, Integer>> workPairs = new ArrayList<>();
+				addWork(Pair.intPair(indices.first, indices.second), dirtyPairs, workPairs, t);
+				while (!workPairs.isEmpty()) {
+					final Pair<Integer, Integer> pair = workPairs.remove(0);
+					if (fillMode) {
+						visit(pair, dirtyPairs, workPairs, t);
+					}
+				}
+				modifiedPairs.addAll(dirtyPairs);
+				modify(modifiedPairs, tile, dirtyPairs);
+			}
+			return new Pair<Terrain, List<Pair<Integer, Integer>>>(t, modifiedPairs);
+		}
+
+		protected void modify(List<Pair<Integer, Integer>> modifiedPairs, Terrain terrain, Set<Pair<Integer, Integer>> dirtyPairs) {
+			for (Pair<Integer, Integer> pair : modifiedPairs) {
+				grid[pair.first][pair.second] = terrain;
+				addDirtyPairs(pair, dirtyPairs);
+			}
+			for (Pair<Integer, Integer> pair : dirtyPairs) {
+				modify(pair.first, pair.second);
+			}
+		}
+
+		private void visit(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
+			int px = pair.first;
+			int py = pair.second;
+			addWork(Pair.intPair(px + 1, py), dirtyPairs, workPairs, t);
+			addWork(Pair.intPair(px - 1, py), dirtyPairs, workPairs, t);
+			addWork(Pair.intPair(px, py + 1), dirtyPairs, workPairs, t);
+			addWork(Pair.intPair(px, py - 1), dirtyPairs, workPairs, t);
+		}
+
+		private void addWork(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
+			if (checkAndGetTerrain(pair.first, pair.second, null) == t) {
+				if (dirtyPairs.add(pair)) {
+					workPairs.add(pair);
 				}
 			}
-			modifiedPairs.addAll(dirtyPairs);
-			modify(modifiedPairs, tile, dirtyPairs);
 		}
-		return new Pair<Terrain, List<Pair<Integer, Integer>>>(t, modifiedPairs);
-	}
 
-	protected void modify(List<Pair<Integer, Integer>> modifiedPairs, Terrain terrain, Set<Pair<Integer, Integer>> dirtyPairs) {
-		for (Pair<Integer, Integer> pair : modifiedPairs) {
-			grid[pair.first][pair.second] = terrain;
-			addDirtyPairs(pair, dirtyPairs);
+		private void addDirtyPairs(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs) {
+			int x = pair.first;
+			int y = pair.second;
+			Terrain[] terrains = ImageBuilder.getAdjacentTerrains(grid, x, y);
+			if (terrains[1] != null) dirtyPairs.add(Pair.intPair(x - 1, y + 1));
+			if (terrains[2] != null) dirtyPairs.add(Pair.intPair(x    , y + 1));
+			if (terrains[3] != null) dirtyPairs.add(Pair.intPair(x + 1, y + 1));
+			if (terrains[4] != null) dirtyPairs.add(Pair.intPair(x - 1, y    ));
+			if (terrains[6] != null) dirtyPairs.add(Pair.intPair(x + 1, y    ));
+			if (terrains[7] != null) dirtyPairs.add(Pair.intPair(x - 1, y - 1));
+			if (terrains[8] != null) dirtyPairs.add(Pair.intPair(x    , y - 1));
+			if (terrains[9] != null) dirtyPairs.add(Pair.intPair(x + 1, y - 1));
 		}
-		for (Pair<Integer, Integer> pair : dirtyPairs) {
-			modify(pair.first, pair.second);
+
+		private void modify(int x, int y) {
+			imageGrid[x][y] = ImageBuilder.createImage(grid, x, y);
 		}
-	}
-
-	private void visit(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
-		int px = pair.first;
-		int py = pair.second;
-		addWork(new Pair<Integer, Integer>(px + 1, py), dirtyPairs, workPairs, t);
-		addWork(new Pair<Integer, Integer>(px - 1, py), dirtyPairs, workPairs, t);
-		addWork(new Pair<Integer, Integer>(px, py + 1), dirtyPairs, workPairs, t);
-		addWork(new Pair<Integer, Integer>(px, py - 1), dirtyPairs, workPairs, t);
-	}
-
-	private void addWork(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs, List<Pair<Integer, Integer>> workPairs, Terrain t) {
-		if (checkAndGetTerrain(pair.first, pair.second, null) == t) {
-			if (dirtyPairs.add(pair)) {
-				workPairs.add(pair);
-			}
-		}
-	}
-
-	private void addDirtyPairs(Pair<Integer, Integer> pair, Set<Pair<Integer, Integer>> dirtyPairs) {
-		int x = pair.first;
-		int y = pair.second;
-		Terrain[] terrains = ImageBuilder.getAdjacentTerrains(grid, x, y);
-		if (terrains[1] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y + 1));
-		if (terrains[2] != null) dirtyPairs.add(new Pair<Integer, Integer>(x    , y + 1));
-		if (terrains[3] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y + 1));
-		if (terrains[4] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y    ));
-		if (terrains[6] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y    ));
-		if (terrains[7] != null) dirtyPairs.add(new Pair<Integer, Integer>(x - 1, y - 1));
-		if (terrains[8] != null) dirtyPairs.add(new Pair<Integer, Integer>(x    , y - 1));
-		if (terrains[9] != null) dirtyPairs.add(new Pair<Integer, Integer>(x + 1, y - 1));
-	}
-
-	private void modify(int x, int y) {
-		imageGrid[x][y] = ImageBuilder.createImage(grid, x, y);
 	}
 
 	public void removeRenderable(int x, int y) {
@@ -465,17 +473,13 @@ public class Game extends JComponent {
 		return fallback;
 	}
 
-	protected void spawn(PokemonSpawnEvent event) {
-		event.spawnPokemon();
-		timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
-	}
-
 	public class PokemonSpawnEvent implements Targetable, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void event(Game game) {
-			spawn(this);
+			spawnPokemon();
+			timer.addTimedEvent(new PokemonSpawnEvent(), 0.5);
 		}
 
 		private void spawnPokemon() {

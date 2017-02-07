@@ -35,4 +35,8 @@ public class Pair <T, U> {
     { 
 		return "(" + first + ", " + second + ")"; 
     }
+
+	public static Pair<Integer, Integer> intPair(int x, int y) {
+		return new Pair<Integer, Integer>(x, y);
+	}
 }

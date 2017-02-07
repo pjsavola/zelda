@@ -93,7 +93,7 @@ public class Simulator {
 			game = (Game) in.readObject();
 			in.close();
 			fileIn.close();
-			game.initialize(false);
+			game.initialize();
 		} catch (IOException e) {
 			System.err.println("Failed to load the game");
 		} catch (ClassNotFoundException e) {

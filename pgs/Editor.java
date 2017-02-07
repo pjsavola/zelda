@@ -60,7 +60,7 @@ public class Editor extends Game {
 	boolean fillMode;
 
 	// Keeping track of starting location.
-	Pair<Integer, Integer> startingLocation = null;
+	Pair<Integer, Integer> startingLocation = Pair.intPair(0, 0);
 
 	// Dummy Renderable to render something for the starting location.
 	final Renderable start = new Renderable() {
@@ -85,7 +85,7 @@ public class Editor extends Game {
 	};
 
 	public Editor(String mapPath) {
-		super(mapPath);
+		super(createBlankMap(20, 20));
 	}
 
 	// Return velocity which is comfortable for editing.
@@ -125,11 +125,6 @@ public class Editor extends Game {
 	@Override
 	protected Renderable checkAndGetRenderable(int x, int y, Renderable fallback) {
 		return null;
-	}
-
-	// Disables spawning of Pokemon.
-	@Override
-	protected void spawn(PokemonSpawnEvent event) {
 	}
 
 	// Header contains some obsolete info, but coordinates are useful.
@@ -193,7 +188,7 @@ public class Editor extends Game {
 			List<Integer> jumpResult = showIntegerFormDialog("Jump to ...", "Select destination", new String[] {"X:", "Y:"});
 			if (jumpResult.size() == 2 &&
 				check(jumpResult.get(0), jumpResult.get(1))) {
-				setPosition(jumpResult.get(0), jumpResult.get(1));
+				setPosition(Pair.intPair(jumpResult.get(0), jumpResult.get(1)));
 				repaint(Simulator.mainArea);
 			}
 			break;
@@ -210,7 +205,7 @@ public class Editor extends Game {
 			if (!undoStack.isEmpty()) {
 				Pair<Terrain, List<Pair<Integer, Integer>>> modifications = undoStack.pop();
 				Set<Pair<Integer, Integer>> dirtyPairs = new HashSet<>(modifications.second);
-				modify(modifications.second, modifications.first, dirtyPairs);
+				mutator.modify(modifications.second, modifications.first, dirtyPairs);
 				repaint(Simulator.mainArea);
 			}
 			break;
@@ -222,23 +217,26 @@ public class Editor extends Game {
 	}
 
 	private void createSpecialObject(SpecialObject o, int x, int y) {
-		final Pair<Integer, Integer> indices = super.getIndices(x, y);
+		final Pair<Integer, Integer> indices = mutator.getCursorIndices(x, y);
 		if (!check(indices.first, indices.second)) {
 			return;
 		}
+		final boolean isStart = indices.equals(startingLocation);
 		switch (o) {
 		case EMPTY:
-			modifyRenderable(indices.first, indices.second, null);
+			if (!isStart) {
+				mutator.modifyRenderable(indices, null);
+			}
 			break;
 		case POKESTOP:
-			modifyRenderable(indices.first, indices.second, new PokeStop());
+			if (!isStart) {
+				mutator.modifyRenderable(indices, new PokeStop());
+			}
 			break;
 		case START:
-			if (!indices.equals(startingLocation)) {
-				if (startingLocation != null) {
-					modifyRenderable(startingLocation.first, startingLocation.second, null);
-				}
-				modifyRenderable(indices.first, indices.second, start);
+			if (!isStart) {
+				mutator.modifyRenderable(startingLocation, null);
+				mutator.modifyRenderable(indices, start);
 			}
 			startingLocation = indices;
 			break;
@@ -248,7 +246,7 @@ public class Editor extends Game {
 
 	private void createTerrain(Terrain terrain, int x, int y) {
 		final Pair<Terrain, List<Pair<Integer, Integer>>> modifications =
-			super.modify(x, y, terrain, fillMode);
+			mutator.modify(x, y, terrain, fillMode);
 		if (!modifications.second.isEmpty()) {
 			undoStack.push(modifications);
 			clearVisionCache();
@@ -274,12 +272,8 @@ public class Editor extends Game {
 			try {
 				BufferedImage mapImage = ImageIO.read(selectedFile);
 			    startingLocation = loadMap(mapImage, true);
-			    if (startingLocation != null) {
-			    	setPosition(startingLocation.first, startingLocation.second);
-			    	modifyRenderable(startingLocation.first, startingLocation.second, start);
-			    } else {
-			    	setPosition(0, 0);
-			    }
+			    setPosition(startingLocation);
+			    mutator.modifyRenderable(startingLocation, start);
 			    resetSettings();
 			} catch (IOException e) {
 				System.err.println("Failed to load: " + selectedFile.getAbsolutePath());
@@ -299,14 +293,18 @@ public class Editor extends Game {
 			System.err.println("Map too large");
 			return;
 		}
-		BufferedImage blankImage = new BufferedImage(x, y, BufferedImage.TYPE_INT_ARGB);
-		Graphics g = blankImage.getGraphics();
-		g.setColor(Color.BLUE);
-		g.fillRect(0, 0, x, y);
-		g.dispose();
-		loadMap(blankImage, true);
+		loadMap(createBlankMap(x, y), true);
 		resetSettings();
 		repaint(Simulator.mainArea);
+	}
+
+	private static BufferedImage createBlankMap(int width, int height) {
+		BufferedImage blankImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics g = blankImage.getGraphics();
+		g.setColor(Color.BLUE);
+		g.fillRect(0, 0, width, height);
+		g.dispose();
+		return blankImage;
 	}
 
 	private void saveMap() {
