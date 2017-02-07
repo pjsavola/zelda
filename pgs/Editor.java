@@ -191,75 +191,20 @@ public class Editor extends Game {
 		case 'j': // Jump to
 			stopMoving();
 			List<Integer> jumpResult = showIntegerFormDialog("Jump to ...", "Select destination", new String[] {"X:", "Y:"});
-			if (jumpResult.size() != 2) {
-				break;
+			if (jumpResult.size() == 2 &&
+				check(jumpResult.get(0), jumpResult.get(1))) {
+				setPosition(jumpResult.get(0), jumpResult.get(1));
+				repaint(Simulator.mainArea);
 			}
-			setPosition(jumpResult.get(0), jumpResult.get(1));
-			repaint(Simulator.mainArea);
 			break;
 		case 'l': // Load map
-			stopMoving();
-			JFileChooser loadFileChooser = new JFileChooser();
-			loadFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-			int loadResult = loadFileChooser.showOpenDialog(this);
-			if (loadResult == JFileChooser.APPROVE_OPTION) {
-			    File selectedFile = loadFileChooser.getSelectedFile();
-				try {
-					BufferedImage mapImage = ImageIO.read(selectedFile);
-				    startingLocation = loadMap(mapImage, true);
-				    if (startingLocation != null) {
-				    	setPosition(startingLocation.first, startingLocation.second);
-				    	modifyRenderable(startingLocation.first, startingLocation.second, start);
-				    } else {
-				    	setPosition(0, 0);
-				    }
-				    clearVisionCache();
-				    tile = null;
-				    editMode = false;
-				    fillMode = false;
-				    repaint(Simulator.mainArea);
-				} catch (IOException e) {
-					System.err.println("Failed to load: " + selectedFile.getAbsolutePath());
-				}
-			}
+			loadMap();
 			break;
 		case 'n': // New map
-			stopMoving();
-			List<Integer> newResult = showIntegerFormDialog("New map ...", "Select dimensions for the new map", new String[] {"Width:", "Height:"});
-			if (newResult.size() != 2) {
-				break;
-			}
-			int x = newResult.get(0);
-			int y = newResult.get(1);
-			if (x < 20 || x > 1000 || y < 20 || y > 1000) {
-				System.err.println("Map too large");
-				break;
-			}
-			BufferedImage blankImage = new BufferedImage(x, y, BufferedImage.TYPE_INT_ARGB);
-			Graphics g = blankImage.getGraphics();
-			g.setColor(Color.BLUE);
-			g.fillRect(0, 0, x, y);
-			loadMap(blankImage, true);
-			clearVisionCache();
-		    tile = null;
-		    editMode = false;
-		    fillMode = false;
-			repaint(Simulator.mainArea);
+			newMap();
 			break;
 		case 's': // Save map
-			stopMoving();
-			JFileChooser saveFileChooser = new JFileChooser();
-			saveFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-			int saveResult = saveFileChooser.showSaveDialog(this);
-			if (saveResult == JFileChooser.APPROVE_OPTION) {
-				File selectedFile = saveFileChooser.getSelectedFile();
-				BufferedImage mapImage = getMapAsImage();
-				try {
-					ImageIO.write(mapImage, "png", selectedFile);
-				} catch (IOException e) {
-					System.err.println("Failed to save: " + selectedFile.getAbsolutePath());
-				}
-			}
+			saveMap();
 			break;
 		case 'u': // undo
 			if (!undoStack.isEmpty()) {
@@ -308,7 +253,76 @@ public class Editor extends Game {
 			undoStack.push(modifications);
 			clearVisionCache();
 			repaint(Simulator.mainArea);
-		}				
+		}
+	}
+
+	private void resetSettings() {
+	    clearVisionCache();
+	    tile = null;
+	    editMode = false;
+	    fillMode = false;
+	    repaint(Simulator.mainArea);
+	}
+
+	private void loadMap() {
+		stopMoving();
+		JFileChooser loadFileChooser = new JFileChooser();
+		loadFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+		int loadResult = loadFileChooser.showOpenDialog(this);
+		if (loadResult == JFileChooser.APPROVE_OPTION) {
+		    File selectedFile = loadFileChooser.getSelectedFile();
+			try {
+				BufferedImage mapImage = ImageIO.read(selectedFile);
+			    startingLocation = loadMap(mapImage, true);
+			    if (startingLocation != null) {
+			    	setPosition(startingLocation.first, startingLocation.second);
+			    	modifyRenderable(startingLocation.first, startingLocation.second, start);
+			    } else {
+			    	setPosition(0, 0);
+			    }
+			    resetSettings();
+			} catch (IOException e) {
+				System.err.println("Failed to load: " + selectedFile.getAbsolutePath());
+			}
+		}
+	}
+
+	private void newMap() {
+		stopMoving();
+		List<Integer> newResult = showIntegerFormDialog("New map ...", "Select dimensions for the new map", new String[] {"Width:", "Height:"});
+		if (newResult.size() != 2) {
+			return;
+		}
+		int x = newResult.get(0);
+		int y = newResult.get(1);
+		if (x < 20 || x > 1000 || y < 20 || y > 1000) {
+			System.err.println("Map too large");
+			return;
+		}
+		BufferedImage blankImage = new BufferedImage(x, y, BufferedImage.TYPE_INT_ARGB);
+		Graphics g = blankImage.getGraphics();
+		g.setColor(Color.BLUE);
+		g.fillRect(0, 0, x, y);
+		g.dispose();
+		loadMap(blankImage, true);
+		resetSettings();
+		repaint(Simulator.mainArea);
+	}
+
+	private void saveMap() {
+		stopMoving();
+		JFileChooser saveFileChooser = new JFileChooser();
+		saveFileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+		int saveResult = saveFileChooser.showSaveDialog(this);
+		if (saveResult == JFileChooser.APPROVE_OPTION) {
+			File selectedFile = saveFileChooser.getSelectedFile();
+			BufferedImage mapImage = getMapAsImage();
+			try {
+				ImageIO.write(mapImage, "png", selectedFile);
+			} catch (IOException e) {
+				System.err.println("Failed to save: " + selectedFile.getAbsolutePath());
+			}
+		}
 	}
 
 	private List<Integer> showIntegerFormDialog(String title, String message, String[] labels) {
@@ -339,11 +353,6 @@ public class Editor extends Game {
 	}
 
 	private void showTileSelectionDialog(Terrain theme) {
-		final String message = theme == null ? "Miscallenous" : theme.getName();
-		JOptionPane optionPane = new JOptionPane();
-		optionPane.setMessage(message + " terrain");
-		optionPane.setOptions(new String[] {"Cancel"});
-	    JPanel panel = new JPanel();
 	    List<Terrain> themedTerrains = new ArrayList<>();
 	    if (theme != null) {
 	    	themedTerrains.add(theme);
@@ -360,43 +369,26 @@ public class Editor extends Game {
 	    		}
 	    	}
 	    }
-	    int size = (int) Math.ceil(Math.sqrt(themedTerrains.size()));
-	    panel.setLayout(new GridLayout(size, size));
-	    final JDialog[] dialogArray = new JDialog[1];
-	    for (final Terrain terrain : themedTerrains) {
-	    	JButton button = new JButton(new ImageIcon(getImage(terrain)));
-	    	button.setBackground(Color.BLACK);
-	    	button.setPreferredSize(new Dimension(16, 16));
-	    	button.addActionListener(new ActionListener() {
-				@Override
-				public void actionPerformed(ActionEvent arg0) {
-					tile = terrain;
-					editMode = true;
-					changeCursor();
-					dialogArray[0].dispose();
-				}
-	    	});
-	    	panel.add(button);
-	    }
-	    optionPane.add(panel, 1);
-	    JDialog dialog = optionPane.createDialog(this, "Select terrain");
-	    dialogArray[0] = dialog;
-		dialog.setVisible(true);
+		final String message = theme == null ? "Miscallenous" : theme.getName();
+	    showDialog(themedTerrains, message, "Select terrain");
 	}
 
 	private void showSpecialObjectSelectionDialog() {
-		JOptionPane optionPane = new JOptionPane();
-		optionPane.setMessage("Select object");
+	    showDialog(Arrays.asList(SpecialObject.values()), "Select object", "Select object");
+	}
+
+	private void showDialog(List<?> objects, String title, String message) {
+		final JOptionPane optionPane = new JOptionPane();
+		optionPane.setMessage(message);
 		optionPane.setOptions(new String[] {"Cancel"});
-	    JPanel panel = new JPanel();
-	    SpecialObject[] objects = SpecialObject.values();
-	    int size = (int) Math.ceil(Math.sqrt(objects.length));
+	    final JPanel panel = new JPanel();
+	    final int size = (int) Math.ceil(Math.sqrt(objects.size()));
 	    panel.setLayout(new GridLayout(size, size));
 	    final JDialog[] dialogArray = new JDialog[1];
-	    for (final SpecialObject object : objects) {
-	    	JButton button = new JButton(new ImageIcon(object.getImage()));
-	    	button.setBackground(Color.BLACK);
-	    	button.setPreferredSize(new Dimension(16, 16));
+	    for (final Object object : objects) {
+	    	final ImageIcon icon = new ImageIcon(getImage(object));
+	    	final JButton button = new JButton(icon);
+	    	button.setPreferredSize(new Dimension(Terrain.tileSize, Terrain.tileSize));
 	    	button.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent arg0) {
@@ -404,12 +396,13 @@ public class Editor extends Game {
 					editMode = true;
 					changeCursor();
 					dialogArray[0].dispose();
+					icon.getImage().flush();
 				}
 	    	});
 	    	panel.add(button);
 	    }
 	    optionPane.add(panel, 1);
-	    JDialog dialog = optionPane.createDialog(this, "Select object");
+	    final JDialog dialog = optionPane.createDialog(this, title);
 	    dialogArray[0] = dialog;
 		dialog.setVisible(true);
 	}
