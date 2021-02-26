@@ -1,4 +1,4 @@
-package zelda;
+package zelda.tmp;
 
 
 public enum PokemonDistribution {	

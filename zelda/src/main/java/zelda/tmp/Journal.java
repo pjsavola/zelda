@@ -1,4 +1,4 @@
-package zelda;
+package zelda.tmp;
 
 import java.awt.Color;
 import java.awt.Graphics;

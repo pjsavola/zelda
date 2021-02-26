@@ -1,4 +1,6 @@
-package zelda;
+package zelda.tmp;
+
+import zelda.ImageCache;
 
 import java.awt.Graphics;
 import java.awt.Image;

@@ -1,4 +1,4 @@
-package zelda;
+package zelda.tmp;
 
 public enum PokemonType {
 	NORMAL, FIGHTING, FLYING, POISON, GROUND, ROCK, BUG, GHOST, STEEL,

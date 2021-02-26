@@ -1,4 +1,4 @@
-package zelda;
+package zelda.tmp;
 
 public class Pair <T, U> {
 	public final T first;

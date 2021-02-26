@@ -1,4 +1,4 @@
-package zelda;
+package zelda.tmp;
 
 public enum CatchItem {
 	POKE_BALL("Poke ball", 1.0),

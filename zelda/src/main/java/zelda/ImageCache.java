@@ -1,5 +1,7 @@
 package zelda;
 
+import zelda.tmp.Terrain;
+
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.GraphicsConfiguration;
@@ -52,14 +54,14 @@ public abstract class ImageCache {
 	}
 
 	public static BufferedImage getImage(String path) {
-		BufferedImage image = imageCache.get(path);
+		BufferedImage image = imageCache.get(Zelda.resourcePath + path);
 		if (image != null) {
 			return image;
 		}
 		try {
-			image = ImageIO.read(new File(path));
+			image = ImageIO.read(new File(Zelda.resourcePath + path));
 		} catch (IOException e) {
-			throw new RuntimeException("Image " + path + " is missing");
+			throw new RuntimeException("Image " + Zelda.resourcePath + path + " is missing");
 		}
 		return updateCache(image, path, imageCache);
 	}
@@ -102,7 +104,7 @@ public abstract class ImageCache {
 		return image;
 	}
 
-	private static BufferedImage toCompatibleImage(BufferedImage image) { 
+	public static BufferedImage toCompatibleImage(BufferedImage image) {
         GraphicsConfiguration gc = getConfiguration(); 
         if (image.getColorModel().equals(gc.getColorModel())) { 
             return image; 
