@@ -1,4 +1,4 @@
-package zelda.tmp;
+package zelda;
 
 public class Vision {
 
