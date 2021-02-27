@@ -3,7 +3,7 @@ package zelda;
 import java.util.*;
 
 public class Animator {
-    private Deque<Zelda.Character> chars = new ArrayDeque<>();
+    private Deque<Character> chars = new ArrayDeque<>();
     private final Timer timer = new Timer();
 
     public Animator(Zelda zelda) {
@@ -14,9 +14,9 @@ public class Animator {
                 if (!chars.isEmpty())
                 {
                     synchronized (this) {
-                        final Iterator<Zelda.Character> it = chars.iterator();
+                        final Iterator<Character> it = chars.iterator();
                         while (it.hasNext()) {
-                            final Zelda.Character c = it.next();
+                            final Character c = it.next();
                             c.animOpacity -= c.animOpacityDropPerSec / fps;
                             if (c.animOpacity <= 0.f) {
                                 it.remove();
@@ -29,7 +29,7 @@ public class Animator {
         }, 0, 1000 / fps);
     }
 
-    public synchronized void addGlow(Zelda.Character c, float opacity, float lossPerSec) {
+    public synchronized void addGlow(Character c, float opacity, float lossPerSec) {
         chars.add(c);
         c.animOpacity = Math.min(1.f, opacity);
         c.animOpacityDropPerSec = lossPerSec;

@@ -19,7 +19,7 @@ import javax.swing.JDialog;
 import javax.swing.JFrame;
 
 public class Zelda extends JComponent {
-	private static final int tileSize = 24;
+	static final int tileSize = 24;
 	private static final int screenWidth = 21;
 	private static final int screenHeight = 21;
 	private static final Dimension dim = new Dimension(tileSize * screenWidth, tileSize * screenHeight);
@@ -73,6 +73,7 @@ public class Zelda extends JComponent {
 			}
 			@Override
 			public void windowClosed(WindowEvent arg0) {
+				System.exit(0);
 			}
 			@Override
 			public void windowClosing(WindowEvent arg0) {
@@ -148,124 +149,12 @@ public class Zelda extends JComponent {
 		private final BufferedImage[] variants = new BufferedImage[11];
 	}
 
-	public class GameObject {
-	    protected int x;
-		protected int y;
-		
-		public void move(int dx, int dy) {
-			final int tx = x + dx;
-			final int ty = y + dy;
-			if (canMoveTo(tx, ty)) {
-				objectGrid[x][y] = null;
-				objectGrid[tx][ty] = this;
-				x += dx;
-				y += dy;
-                calculateVision();
-			} else {
-				GameObject o = getObject(tx, ty);
-				if (o != null && o.isPushable()) {
-					if (canMoveTo(x + 2 * dx, y + 2 * dy)) {
-						objectGrid[x + 2 * dx][y + 2 * dy] = o;
-						objectGrid[tx][ty] = this;
-						objectGrid[x][y] = null;
-						x += dx;
-						y += dy;
-						calculateVision();
-					}
-				}
-			}
-		}
-		
-		public boolean isPushable() {
-			return false;
-		}
-		
-		public boolean isPassable() {
-			return false;
-		}
-
-		public void paint(Graphics g, int x, int y) {
-		}
-	}
-	
-	public class Boulder extends GameObject {
-	    Feature feature;
-		@Override
-		public boolean isPushable() {
-			return true;
-		}
-
-		@Override
-        public void paint(Graphics g, int x, int y) {
-            g.drawImage(feature.getImage(), x, y, null);
-        }
-	}
-
-	public class Character extends GameObject {
-		int hp;
-		int atk;
-		int def;
-		int maxHp;
-		int speed = 100;
-		long priority;
-		int chaseTurns;
-		Creature cre;
-
-		float animOpacity = 0.f;
-		float animOpacityDropPerSec = 0.f;
-
-		@Override
-		public void move(int dx, int dy) {
-			final GameObject o = getObject(x + dx, y + dy);
-			if (o instanceof Character) {
-				Character c = (Character) o;
-				if (atk > c.def) {
-					c.hp -= atk - c.def;
-					if (c.hp <= 0) {
-					    c.death();
-					} else {
-						animator.addGlow(c, 1.0f, 2.f);
-					}
-				}
-			} else {
-				super.move(dx, dy);
-			}
-		}
-
-		@Override
-		public void paint(Graphics g, int x, int y) {
-			if (animOpacity > 0.f) {
-				g.drawImage(cre.getImage((int) (animOpacity * 10)), x, y, null);
-			} else {
-				g.drawImage(cre.getImage(), x, y, null);
-			}
-			if (hp < maxHp) {
-				g.setColor(Color.BLACK);
-				g.drawLine(x + 2, y, x + tileSize - 3, y);
-				g.drawLine(x + 2, y + 1, x + tileSize - 3, y + 1);
-				if (hp * 4 <= maxHp) g.setColor(Color.RED);
-				else if (hp * 2 <= maxHp) g.setColor(Color.ORANGE);
-				else if (hp * 4 / 3 <= maxHp) g.setColor(Color.YELLOW);
-				else g.setColor(Color.GREEN);
-				int width = (hp * (tileSize - 5) + maxHp / 2) / maxHp;
-				g.drawLine(x + 2, y, x + width, y);
-				g.drawLine(x + 2, y + 1, x + width, y + 1);
-			}
-		}
-
-		public void death() {
-		    queue.remove(this);
-		    enemies.remove(this);
-            objectGrid[x][y] = null;
-        }
-	}
-
-    private int width;
+	private int width;
 	private int height;
 	private Terrain[][] grid;
 	private GameObject[][] objectGrid;
-	private Character link = new Character();
-    private final Animator animator = new Animator(this);
+	private Character link = new Character(this);
+    final Animator animator = new Animator(this);
     private final PriorityQueue<Character> queue = new PriorityQueue<>(Comparator.comparingLong(c -> c.priority));
     private float vision = 11.f;
     private Vision los;
@@ -291,31 +180,25 @@ public class Zelda extends JComponent {
 			}
 		}
 		link.cre = Creature.LINK_NO_ITEMS;
-		link.x = 40;
-		link.y = 40;
 		link.hp = 20;
 		link.maxHp = 20;
 		link.atk = 5;
 		link.def = 1;
-		objectGrid[link.x][link.y] = link;
-		
-		Boulder rock = new Boulder();
-		rock.feature = Feature.ROCK;
-		rock.x = 41;
-		rock.y = 40;
-		objectGrid[41][35] = rock;
+		placeObject(link, 41, 40);
 
-		Character boko = new Character();
+		Boulder rock = new Boulder(this);
+		rock.feature = Feature.ROCK;
+		placeObject(rock, 41, 35);
+
+		Character boko = new Character(this);
 		boko.cre = Creature.BOKOBLIN;
-		boko.x = 45;
-		boko.y = 40;
 		boko.hp = 30;
 		boko.maxHp = 30;
 		boko.atk = 2;
 		boko.def = 1;
 		boko.speed = 150;
-		objectGrid[boko.x][boko.y] = boko;
-		enemies.add(boko);
+		placeObject(boko, 45, 40);
+
 		calculateVision();
 	}
 	
@@ -339,6 +222,39 @@ public class Zelda extends JComponent {
 					objectGrid[px][py].paint(g, x, y);
 				}
 			}
+		}
+	}
+
+	public void placeObject(GameObject o, int x, int y) {
+		if (objectGrid[x][y] != null) throw new RuntimeException("Target position " + x + "," + y + " is not empty");
+		objectGrid[x][y] = o;
+		o.x = x;
+		o.y = y;
+		if (o instanceof Character && o != link) {
+			enemies.add((Character) o);
+		}
+	}
+
+	public void moveObject(GameObject o, int x, int y) {
+		if (objectGrid[o.x][o.y] != o) throw new RuntimeException("Object pmismatch: " + o.x + "," + o.y);
+		if (objectGrid[x][y] != null) throw new RuntimeException("Target position " + x + "," + y + " is not empty");
+		objectGrid[o.x][o.y] = null;
+		objectGrid[x][y] = o;
+		o.x = x;
+		o.y = y;
+		if (o == link) {
+			calculateVision();
+		}
+	}
+
+	public void destroyObject(GameObject o) {
+		if (objectGrid[o.x][o.y] != o) throw new RuntimeException("Object pmismatch: " + o.x + "," + o.y);
+		objectGrid[o.x][o.y] = null;
+		o.x = -1;
+		o.y = -1;
+		if (o instanceof Character) {
+			queue.remove(o);
+			enemies.remove(o);
 		}
 	}
 	
@@ -382,6 +298,10 @@ public class Zelda extends JComponent {
             case 'x': link.move(0, 1); break;
             case 'c': link.move(1, 1); break;
         }
+        final Set<Character> test = new HashSet<>();
+	    test.addAll(queue);
+	    test.addAll(enemies);
+	    if (test.size() != queue.size() + enemies.size()) throw new RuntimeException("Queue mismatch");
         link.priority += link.speed;
 	    Iterator<Character> it = enemies.iterator();
 	    while (it.hasNext()) {
