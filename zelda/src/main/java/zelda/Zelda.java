@@ -1,7 +1,6 @@
 package zelda;
 
-import java.awt.Color;
-import java.awt.Graphics;
+import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
@@ -12,6 +11,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
@@ -22,17 +22,21 @@ public class Zelda extends JComponent {
 	private static final int tileSize = 24;
 	private static final int screenWidth = 21;
 	private static final int screenHeight = 21;
-	public static int windowWidth = tileSize * screenWidth;
-	public static int windowHeight = tileSize * screenHeight;
+	private static final Dimension dim = new Dimension(tileSize * screenWidth, tileSize * screenHeight);
 	public static final String resourcePath = Zelda.class.getResource("/").getPath();
+
+	@Override
+	public Dimension getPreferredSize() {
+		return dim;
+	}
 	
 	public static void main(String[] args) {
 		JDialog frame = new JDialog();
 		frame.setTitle("Zelda");
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.setBounds(100, 100, windowWidth, windowHeight + 24);
 		final Zelda zelda = new Zelda();
 		frame.setContentPane(zelda);
+		frame.pack();
 		frame.addKeyListener(new KeyListener() {
 			@Override
 			public void keyPressed(KeyEvent e) {
@@ -89,7 +93,6 @@ public class Zelda extends JComponent {
 		});
 		frame.requestFocus();
 		frame.setResizable(false);
-		frame.setModal(true);
 		frame.setVisible(true);
 	}
 
@@ -205,7 +208,7 @@ public class Zelda extends JComponent {
 		int maxHp;
 		int speed = 100;
 		long priority;
-		int forget;
+		int chaseTurns;
 		Creature cre;
 
 		float animOpacity = 0.f;
@@ -313,10 +316,6 @@ public class Zelda extends JComponent {
 		boko.speed = 150;
 		objectGrid[boko.x][boko.y] = boko;
 		enemies.add(boko);
-
-
-
-		queue.add(boko);
 		calculateVision();
 	}
 	
@@ -387,11 +386,9 @@ public class Zelda extends JComponent {
 	    Iterator<Character> it = enemies.iterator();
 	    while (it.hasNext()) {
             Character c = it.next();
-            int dx = link.x - c.x;
-            int dy = link.y - c.y;
-            if (dx * dx + dy * dy < 100) {
+            if (los.getLightness(c.x, c.y) > 0.f) {
                 c.priority = link.priority;
-                c.forget = 0;
+                c.chaseTurns = 3;
                 queue.add(c);
                 it.remove();
             }
@@ -399,9 +396,9 @@ public class Zelda extends JComponent {
         queue.add(link);
         Character c;
         while ((c = queue.remove()) != link) {
-            int dx = link.x - c.x;
-            int dy = link.y - c.y;
-            if (dx * dx + dy * dy < 100) {
+            if (c.chaseTurns > 0) {
+                int dx = link.x - c.x;
+                int dy = link.y - c.y;
                 int dist = Math.max(Math.abs(dx), Math.abs(dy));
                 if (dist == 1) {
                     c.move(dx, dy);
@@ -428,14 +425,16 @@ public class Zelda extends JComponent {
                         c.move((dir % 3) - 1, (dir / 3) - 1);
                     }
                 }
-                c.forget = 0;
-            } else {
-                ++c.forget;
-                enemies.add(c);
             }
-            if (c.forget < 5) {
+            --c.chaseTurns;
+            if (los.getLightness(c.x, c.y) > 0.f) {
+                c.chaseTurns = 3;
+            }
+            if (c.chaseTurns > 0) {
                 c.priority += c.speed;
                 queue.add(c);
+            } else {
+                enemies.add(c);
             }
         }
 		repaint();
