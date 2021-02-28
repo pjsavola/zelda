@@ -42,7 +42,12 @@ public class Vision {
 	}
 	
 	public float getLightness(int x, int y) {
-		return lightMap[x - minX][y - minY];
+		int dx = x - minX;
+		int dy = y - minY;
+		if (dx < 0 || dy < 0 || dx >= width || dy >= height) {
+			return 0.f;
+		}
+		return lightMap[dx][dy];
 	}
 	
 	public float getRadius() {

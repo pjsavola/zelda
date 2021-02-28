@@ -1,12 +1,7 @@
 package zelda;
 
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -65,6 +60,15 @@ public class Zelda extends JComponent {
 			}
 			@Override
 			public void mouseReleased(MouseEvent e) {
+			}
+		});
+		zelda.addMouseMotionListener(new MouseMotionListener() {
+			@Override
+			public void mouseDragged(MouseEvent e) {
+			}
+			@Override
+			public void mouseMoved(MouseEvent e) {
+				zelda.mouseOver(e.getX(), e.getY());
 			}
 		});
 		frame.addWindowListener(new WindowListener() {
@@ -158,6 +162,8 @@ public class Zelda extends JComponent {
     private final PriorityQueue<Character> queue = new PriorityQueue<>(Comparator.comparingLong(c -> c.priority));
     private float vision = 11.f;
     private Vision los;
+    public volatile Point a0;
+    public volatile Point a1;
 
     private final List<Character> enemies = new ArrayList<>();
 	
@@ -221,6 +227,26 @@ public class Zelda extends JComponent {
 				if (objectGrid[px][py] != null) {
 					objectGrid[px][py].paint(g, x, y);
 				}
+			}
+		}
+		if (a0 != null && a1 != null) {
+		    g.setColor(Color.ORANGE);
+		    BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
+            ((Graphics2D) g).setStroke(bs);
+            g.drawLine(a0.x, a0.y, a1.x, a1.y);
+        } else if (aimX != -1 && aimY != -1 && !arrowPath.isEmpty()) {
+			int x0 = arrowPath.get(0).x;
+			int y0 = arrowPath.get(0).y;
+			int x1 = arrowPath.get(arrowPath.size() - 1).x;
+			int y1 = arrowPath.get(arrowPath.size() - 1).y;
+			g.setColor(Color.ORANGE);
+			BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, new float[] {9}, 5);
+			((Graphics2D) g).setStroke(bs);
+			g.drawLine(x0, y0, x1, y1);
+			if (arrowTarget != null) {
+				bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
+				((Graphics2D) g).setStroke(bs);
+				g.drawOval(arrowTarget.x - 8, arrowTarget.y - 8, 16, 16);
 			}
 		}
 	}
@@ -288,6 +314,11 @@ public class Zelda extends JComponent {
     public Random r = new Random();
 	
 	public void press(char input) {
+		if (a0 != null) return;
+
+		aimX = -1;
+		aimY = -1;
+
 	    switch (input) {
             case 'q': link.move(-1, -1); break;
             case 'w': link.move(0, -1); break;
@@ -361,6 +392,87 @@ public class Zelda extends JComponent {
 	}
 	
 	public void click(int x, int y) {
-		
+		if (a0 != null) return;
+
+		int tx = x / tileSize;
+		int ty = y / tileSize;
+		if (tx >= 0 && tx < screenWidth && ty >= 0 && ty < screenHeight) {
+			int px = link.x - screenWidth / 2 + tx;
+			int py = link.y - screenHeight / 2 + ty;
+			if (px >= 0 && px < width && py >= 0 && py < height && los.getLightness(px, py) > 0.f) {
+				int x0 = screenWidth * tileSize / 2;
+				int y0 = screenHeight * tileSize / 2;
+				aimX = -1;
+				aimY = -1;
+				//drawArrow(x0, y0, tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+			}
+		}
+	}
+
+
+	private int aimX = -1;
+	private int aimY = -1;
+
+	public void mouseOver(int x, int y) {
+		if (a0 != null) return;
+
+		int tx = x / tileSize;
+		int ty = y / tileSize;
+		if (tx != aimX || ty != aimY) {
+			aimX = -1;
+			aimY = -1;
+			if (tx >= 0 && tx < screenWidth && ty >= 0 && ty < screenHeight) {
+				int px = link.x - screenWidth / 2 + tx;
+				int py = link.y - screenHeight / 2 + ty;
+				if (px >= 0 && px < width && py >= 0 && py < height && los.getLightness(px, py) > 0.f) {
+					int x0 = screenWidth * tileSize / 2;
+					int y0 = screenHeight * tileSize / 2;
+					refreshArrowPath(x0, y0, tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+					aimX = tx;
+					aimY = ty;
+				}
+			}
+			repaint();
+		}
+	}
+
+	private final List<Point> arrowPath = new ArrayList<>();
+	private Point arrowTarget;
+
+	private void refreshArrowPath(int x0, int y0, int x1, int y1) {
+		arrowTarget = null;
+		arrowPath.clear();
+		int dx = Math.abs(x1 - x0);
+		int sx = x0 < x1 ? 1 : -1;
+		int dy = -Math.abs(y1 - y0);
+		int sy = y0 < y1 ? 1 : -1;
+		int err = dx + dy;
+		while (x0 != x1 || y0 != y1) {
+			int tx = x0 / tileSize;
+			int ty = y0 / tileSize;
+			int px = link.x - screenWidth / 2 + tx;
+			int py = link.y - screenHeight / 2 + ty;
+			if (!canMoveTo(px, py)) {
+				if (objectGrid[px][py] instanceof Character) {
+					Character c = (Character) objectGrid[px][py];
+					if (c != link) {
+						arrowTarget = new Point(tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+						break;
+					}
+				} else {
+					break;
+				}
+			}
+		    arrowPath.add(new Point(x0, y0));
+			int e2 = 2 * err;
+			if (e2 >= dy) {
+				err += dy;
+				x0 += sx;
+			}
+			if (e2 <= dx) {
+				err += dx;
+				y0 += sy;
+			}
+		}
 	}
 }
