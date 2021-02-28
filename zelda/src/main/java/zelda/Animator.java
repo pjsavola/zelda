@@ -7,6 +7,7 @@ import java.util.List;
 public class Animator {
     private Deque<Character> chars = new ArrayDeque<>();
     private int maxArrowIndex = -1;
+    private Character arrowSrc;
     private final Timer timer = new Timer();
 
     public Animator(Zelda zelda) {
@@ -29,10 +30,10 @@ public class Animator {
                     }
                 }
                 if (maxArrowIndex >= 0) {
-                    zelda.arrowIndex += 12;
+                    zelda.arrowIndex += 15;
                     if (zelda.arrowIndex > maxArrowIndex) {
                         maxArrowIndex = -1;
-                        zelda.hitArrow();
+                        zelda.hitArrow(arrowSrc);
                     }
                     zelda.repaint();
                 }
@@ -46,8 +47,9 @@ public class Animator {
         c.animOpacityDropPerSec = lossPerSec;
     }
 
-    public void addArrow(int maxArrowIndex) {
+    public void addArrow(int maxArrowIndex, Character arrowSrc) {
         this.maxArrowIndex = maxArrowIndex;
+        this.arrowSrc = arrowSrc;
     }
 
     public void terminate() {

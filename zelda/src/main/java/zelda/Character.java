@@ -7,6 +7,7 @@ public class Character extends GameObject {
     int atk;
     int def;
     int maxHp;
+    int range = 1;
     int speed = 100;
     long priority;
     int chaseTurns;
@@ -31,9 +32,13 @@ public class Character extends GameObject {
 
     public void hit(Character c) {
         if (atk > c.def) {
+            System.err.println(c.cre + " lost " + (atk - c.def) + " HP");
             c.hp -= atk - c.def;
             if (c.hp <= 0) {
                 zelda.destroyObject(c);
+                if (c == zelda.link) {
+                    System.exit(0);
+                }
             } else {
                 zelda.animator.addGlow(c, 1.0f, 2.f);
             }

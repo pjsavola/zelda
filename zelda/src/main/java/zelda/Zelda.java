@@ -111,7 +111,8 @@ public class Zelda extends JComponent {
 
     public enum Creature {
 		LINK_NO_ITEMS("link_no_items"),
-        BOKOBLIN("bokoblin");
+        BOKOBLIN("bokoblin"),
+		BOKOBLIN_BOW("bokoblin boko club");
 
 		private Creature(String file) {
 			String path = "images/objects/" + file + ".png";
@@ -157,7 +158,7 @@ public class Zelda extends JComponent {
 	private int height;
 	private Terrain[][] grid;
 	private GameObject[][] objectGrid;
-	private Character link = new Character(this);
+	Character link = new Character(this);
     final Animator animator = new Animator(this);
     private final PriorityQueue<Character> queue = new PriorityQueue<>(Comparator.comparingLong(c -> c.priority));
     private float vision = 11.f;
@@ -188,7 +189,7 @@ public class Zelda extends JComponent {
 		link.maxHp = 20;
 		link.atk = 5;
 		link.def = 1;
-		placeObject(link, 41, 40);
+		placeObject(link, 36, 39);
 
 		Boulder rock = new Boulder(this);
 		rock.feature = Feature.ROCK;
@@ -200,8 +201,18 @@ public class Zelda extends JComponent {
 		boko.maxHp = 30;
 		boko.atk = 2;
 		boko.def = 1;
-		boko.speed = 150;
-		placeObject(boko, 45, 40);
+		boko.speed = 1500;
+		placeObject(boko, 37, 42);
+
+		Character boko2 = new Character(this);
+		boko2.cre = Creature.BOKOBLIN_BOW;
+		boko2.hp = 30;
+		boko2.maxHp = 30;
+		boko2.atk = 2;
+		boko2.def = 1;
+		boko2.speed = 150;
+		boko2.range = 10;
+		placeObject(boko2, 37, 45);
 
 		calculateVision();
 	}
@@ -319,63 +330,67 @@ public class Zelda extends JComponent {
 		final Set<Character> test = new HashSet<>();
 		test.addAll(queue);
 		test.addAll(enemies);
-		if (test.size() != queue.size() + enemies.size()) throw new RuntimeException("Queue mismatch");
-		link.priority += link.speed;
-		Iterator<Character> it = enemies.iterator();
-		while (it.hasNext()) {
-			Character c = it.next();
-			if (los.getLightness(c.x, c.y) > 0.f) {
-				c.priority = link.priority;
-				c.chaseTurns = 3;
-				queue.add(c);
-				it.remove();
-			}
+		if (test.size() != queue.size() + enemies.size()) throw new RuntimeException("Duplicates in queue");
+		Character c = queue.remove();
+		if (c == link) {
+			repaint();
+			return;
 		}
-		queue.add(link);
-		Character c;
-		while ((c = queue.remove()) != link) {
-			if (c.chaseTurns > 0) {
-				int dx = link.x - c.x;
-				int dy = link.y - c.y;
-				int dist = Math.max(Math.abs(dx), Math.abs(dy));
-				if (dist == 1) {
-					c.move(dx, dy);
-				} else {
-					final List<Integer> dirs = new ArrayList<>();
-					for (int i = 0; i < 9; ++i) {
-						int x = (i % 3) - 1;
-						int y = (i / 3) - 1;
-						if (canMoveTo(c.x + x, c.y + y)) {
-							int dx2 = c.x + x - link.x;
-							int dy2 = c.y + y - link.y;
-							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
-							if (dist2 < dist) {
-								dirs.clear();
-								dist = dist2;
-								dirs.add(i);
-							} else if (dist2 == dist) {
-								dirs.add(i);
-							}
-						}
-					}
-					if (!dirs.isEmpty()) {
-						int dir = dirs.get(r.nextInt(dirs.size()));
-						c.move((dir % 3) - 1, (dir / 3) - 1);
-					}
+		if (c.chaseTurns > 0) {
+			int dx = link.x - c.x;
+			int dy = link.y - c.y;
+			if (c.range > 1 && c.range * c.range > dx * dx + dy * dy) {
+				int x1 = screenWidth * tileSize / 2;
+				int y1 = screenHeight * tileSize / 2;
+				int x0 = x1 - dx * tileSize;
+				int y0 = y1 - dy * tileSize;
+				refreshArrowPath(x0, y0, x1, y1, c);
+				if (!arrowPath.isEmpty() && arrowTarget != null) {
+					arrowIndex = 0;
+					c.priority += c.speed;
+					queue.add(c);
+					animator.addArrow(arrowPath.size() - 1, c);
+					return;
 				}
 			}
-			--c.chaseTurns;
-			if (los.getLightness(c.x, c.y) > 0.f) {
-				c.chaseTurns = 3;
-			}
-			if (c.chaseTurns > 0) {
-				c.priority += c.speed;
-				queue.add(c);
+			int dist = Math.max(Math.abs(dx), Math.abs(dy));
+			if (dist == 1) {
+				c.move(dx, dy);
 			} else {
-				enemies.add(c);
+				final List<Integer> dirs = new ArrayList<>();
+				for (int i = 0; i < 9; ++i) {
+					int x = (i % 3) - 1;
+					int y = (i / 3) - 1;
+					if (canMoveTo(c.x + x, c.y + y)) {
+						int dx2 = c.x + x - link.x;
+						int dy2 = c.y + y - link.y;
+						int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
+						if (dist2 < dist) {
+							dirs.clear();
+							dist = dist2;
+							dirs.add(i);
+						} else if (dist2 == dist) {
+							dirs.add(i);
+						}
+					}
+				}
+				if (!dirs.isEmpty()) {
+					int dir = dirs.get(r.nextInt(dirs.size()));
+					c.move((dir % 3) - 1, (dir / 3) - 1);
+				}
 			}
 		}
-		repaint();
+		--c.chaseTurns;
+		if (los.getLightness(c.x, c.y) > 0.f) {
+			c.chaseTurns = 3;
+		}
+		if (c.chaseTurns > 0) {
+			c.priority += c.speed;
+			queue.add(c);
+		} else {
+			enemies.add(c);
+		}
+		nextTurn();
 	}
 
 	public void press(char input) {
@@ -393,8 +408,26 @@ public class Zelda extends JComponent {
             case 'z': link.move(-1, 1); break;
             case 'x': link.move(0, 1); break;
             case 'c': link.move(1, 1); break;
+			case 's': break;
+			default: return;
         }
+		wakeUpEnemies();
         nextTurn();
+	}
+
+	public void wakeUpEnemies() {
+		link.priority += link.speed;
+		Iterator<Character> it = enemies.iterator();
+		while (it.hasNext()) {
+			Character c = it.next();
+			if (los.getLightness(c.x, c.y) > 0.f) {
+				c.priority = link.priority;
+				c.chaseTurns = 3;
+				queue.add(c);
+				it.remove();
+			}
+		}
+		queue.add(link);
 	}
 	
 	public void click(int x, int y) {
@@ -403,7 +436,7 @@ public class Zelda extends JComponent {
 		mouseOver(x, y);
 		if (!arrowPath.isEmpty()) {
 			arrowIndex = 0;
-			animator.addArrow(arrowPath.size() - 1);
+			animator.addArrow(arrowPath.size() - 1, link);
 			aimX = -1;
 			aimY = -1;
 		}
@@ -424,7 +457,7 @@ public class Zelda extends JComponent {
 				if (px >= 0 && px < width && py >= 0 && py < height && los.getLightness(px, py) > 0.f) {
 					int x0 = screenWidth * tileSize / 2;
 					int y0 = screenHeight * tileSize / 2;
-					refreshArrowPath(x0, y0, tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+					refreshArrowPath(x0, y0, tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2, link);
 					aimX = tx;
 					aimY = ty;
 				}
@@ -433,15 +466,18 @@ public class Zelda extends JComponent {
 		}
 	}
 
-	void hitArrow() {
+	void hitArrow(Character src) {
 		arrowIndex = -1;
 		if (arrowTarget != null) {
 			int tx = arrowTarget.x / tileSize;
 			int ty = arrowTarget.y / tileSize;
 			int px = link.x - screenWidth / 2 + tx;
 			int py = link.y - screenHeight / 2 + ty;
-			link.hit((Character) objectGrid[px][py]);
+			src.hit((Character) objectGrid[px][py]);
 			arrowTarget = null;
+		}
+		if (src == link) {
+			wakeUpEnemies();
 		}
 		nextTurn();
 	}
@@ -452,7 +488,7 @@ public class Zelda extends JComponent {
 	private Point arrowTarget;
 	int arrowIndex = -1;
 
-	private void refreshArrowPath(int x0, int y0, int x1, int y1) {
+	private void refreshArrowPath(int x0, int y0, int x1, int y1, Character src) {
 		arrowTarget = null;
 		arrowPath.clear();
 		int dx = Math.abs(x1 - x0);
@@ -468,7 +504,7 @@ public class Zelda extends JComponent {
 			if (!canMoveTo(px, py)) {
 				if (objectGrid[px][py] instanceof Character) {
 					Character c = (Character) objectGrid[px][py];
-					if (c != link) {
+					if (c != src) {
 						arrowTarget = new Point(tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
 						break;
 					}
