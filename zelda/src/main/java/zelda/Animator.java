@@ -31,8 +31,8 @@ public class Animator {
                 if (maxArrowIndex >= 0) {
                     zelda.arrowIndex += 12;
                     if (zelda.arrowIndex > maxArrowIndex) {
-                        zelda.arrowIndex = -1;
                         maxArrowIndex = -1;
+                        zelda.hitArrow();
                     }
                     zelda.repaint();
                 }

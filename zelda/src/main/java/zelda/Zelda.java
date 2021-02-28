@@ -314,7 +314,70 @@ public class Zelda extends JComponent {
     }
 
     public Random r = new Random();
-	
+
+	public void nextTurn() {
+		final Set<Character> test = new HashSet<>();
+		test.addAll(queue);
+		test.addAll(enemies);
+		if (test.size() != queue.size() + enemies.size()) throw new RuntimeException("Queue mismatch");
+		link.priority += link.speed;
+		Iterator<Character> it = enemies.iterator();
+		while (it.hasNext()) {
+			Character c = it.next();
+			if (los.getLightness(c.x, c.y) > 0.f) {
+				c.priority = link.priority;
+				c.chaseTurns = 3;
+				queue.add(c);
+				it.remove();
+			}
+		}
+		queue.add(link);
+		Character c;
+		while ((c = queue.remove()) != link) {
+			if (c.chaseTurns > 0) {
+				int dx = link.x - c.x;
+				int dy = link.y - c.y;
+				int dist = Math.max(Math.abs(dx), Math.abs(dy));
+				if (dist == 1) {
+					c.move(dx, dy);
+				} else {
+					final List<Integer> dirs = new ArrayList<>();
+					for (int i = 0; i < 9; ++i) {
+						int x = (i % 3) - 1;
+						int y = (i / 3) - 1;
+						if (canMoveTo(c.x + x, c.y + y)) {
+							int dx2 = c.x + x - link.x;
+							int dy2 = c.y + y - link.y;
+							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
+							if (dist2 < dist) {
+								dirs.clear();
+								dist = dist2;
+								dirs.add(i);
+							} else if (dist2 == dist) {
+								dirs.add(i);
+							}
+						}
+					}
+					if (!dirs.isEmpty()) {
+						int dir = dirs.get(r.nextInt(dirs.size()));
+						c.move((dir % 3) - 1, (dir / 3) - 1);
+					}
+				}
+			}
+			--c.chaseTurns;
+			if (los.getLightness(c.x, c.y) > 0.f) {
+				c.chaseTurns = 3;
+			}
+			if (c.chaseTurns > 0) {
+				c.priority += c.speed;
+				queue.add(c);
+			} else {
+				enemies.add(c);
+			}
+		}
+		repaint();
+	}
+
 	public void press(char input) {
 		if (arrowIndex >= 0) return;
 
@@ -331,66 +394,7 @@ public class Zelda extends JComponent {
             case 'x': link.move(0, 1); break;
             case 'c': link.move(1, 1); break;
         }
-        final Set<Character> test = new HashSet<>();
-	    test.addAll(queue);
-	    test.addAll(enemies);
-	    if (test.size() != queue.size() + enemies.size()) throw new RuntimeException("Queue mismatch");
-        link.priority += link.speed;
-	    Iterator<Character> it = enemies.iterator();
-	    while (it.hasNext()) {
-            Character c = it.next();
-            if (los.getLightness(c.x, c.y) > 0.f) {
-                c.priority = link.priority;
-                c.chaseTurns = 3;
-                queue.add(c);
-                it.remove();
-            }
-        }
-        queue.add(link);
-        Character c;
-        while ((c = queue.remove()) != link) {
-            if (c.chaseTurns > 0) {
-                int dx = link.x - c.x;
-                int dy = link.y - c.y;
-                int dist = Math.max(Math.abs(dx), Math.abs(dy));
-                if (dist == 1) {
-                    c.move(dx, dy);
-                } else {
-                    final List<Integer> dirs = new ArrayList<>();
-                    for (int i = 0; i < 9; ++i) {
-                        int x = (i % 3) - 1;
-                        int y = (i / 3) - 1;
-                        if (canMoveTo(c.x + x, c.y + y)) {
-                            int dx2 = c.x + x - link.x;
-                            int dy2 = c.y + y - link.y;
-                            int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
-                            if (dist2 < dist) {
-                                dirs.clear();
-                                dist = dist2;
-                                dirs.add(i);
-                            } else if (dist2 == dist) {
-                                dirs.add(i);
-                            }
-                        }
-                    }
-                    if (!dirs.isEmpty()) {
-                        int dir = dirs.get(r.nextInt(dirs.size()));
-                        c.move((dir % 3) - 1, (dir / 3) - 1);
-                    }
-                }
-            }
-            --c.chaseTurns;
-            if (los.getLightness(c.x, c.y) > 0.f) {
-                c.chaseTurns = 3;
-            }
-            if (c.chaseTurns > 0) {
-                c.priority += c.speed;
-                queue.add(c);
-            } else {
-                enemies.add(c);
-            }
-        }
-		repaint();
+        nextTurn();
 	}
 	
 	public void click(int x, int y) {
@@ -427,6 +431,19 @@ public class Zelda extends JComponent {
 			}
 			repaint();
 		}
+	}
+
+	void hitArrow() {
+		arrowIndex = -1;
+		if (arrowTarget != null) {
+			int tx = arrowTarget.x / tileSize;
+			int ty = arrowTarget.y / tileSize;
+			int px = link.x - screenWidth / 2 + tx;
+			int py = link.y - screenHeight / 2 + ty;
+			link.hit((Character) objectGrid[px][py]);
+			arrowTarget = null;
+		}
+		nextTurn();
 	}
 
 	private int aimX = -1;

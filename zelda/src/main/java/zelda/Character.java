@@ -23,17 +23,20 @@ public class Character extends GameObject {
     public void move(int dx, int dy) {
         final GameObject o = zelda.getObject(x + dx, y + dy);
         if (o instanceof Character) {
-            Character c = (Character) o;
-            if (atk > c.def) {
-                c.hp -= atk - c.def;
-                if (c.hp <= 0) {
-                    zelda.destroyObject(c);
-                } else {
-                    zelda.animator.addGlow(c, 1.0f, 2.f);
-                }
-            }
+            hit((Character) o);
         } else {
             super.move(dx, dy);
+        }
+    }
+
+    public void hit(Character c) {
+        if (atk > c.def) {
+            c.hp -= atk - c.def;
+            if (c.hp <= 0) {
+                zelda.destroyObject(c);
+            } else {
+                zelda.animator.addGlow(c, 1.0f, 2.f);
+            }
         }
     }
 
