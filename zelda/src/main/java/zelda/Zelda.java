@@ -190,6 +190,7 @@ public class Zelda extends JComponent {
 		link.atk = 5;
 		link.def = 1;
 		link.team = Character.Team.FRIENDLY;
+		//link.swimming = true;
 		placeObject(link, 37, 45);
 
 		Boulder rock = new Boulder(this);
@@ -204,6 +205,7 @@ public class Zelda extends JComponent {
 		boko2.def = 1;
 		boko2.speed = 150;
 		boko2.range = 10;
+		boko2.team = Character.Team.NEUTRAL;
 		placeObject(boko2, 36, 39);
 
 		Character boko = new Character(this);
@@ -356,44 +358,85 @@ public class Zelda extends JComponent {
 		if (c.chaseTurns > 0) {
 			int dx = link.x - c.x;
 			int dy = link.y - c.y;
-			if (c.range > 1 && c.range * c.range > dx * dx + dy * dy) {
-				int x1 = screenWidth * tileSize / 2;
-				int y1 = screenHeight * tileSize / 2;
-				int x0 = x1 - dx * tileSize;
-				int y0 = y1 - dy * tileSize;
-				refreshArrowPath(x0, y0, x1, y1, c);
-				if (!arrowPath.isEmpty() && arrowPoint != null && arrowTarget.team != c.team) {
-					arrowIndex = 0;
-					c.priority += c.speed;
-					queue.add(c);
-					animator.addArrow(arrowPath.size() - 1, c);
-					return;
-				}
-			}
-			int dist = Math.max(Math.abs(dx), Math.abs(dy));
-			if (dist == 1) {
-				c.move(dx, dy);
-			} else {
-				final List<Integer> dirs = new ArrayList<>();
-				for (int i = 0; i < 9; ++i) {
-					int x = (i % 3) - 1;
-					int y = (i / 3) - 1;
-					if (c.canMoveTo(x, y)) {
-						int dx2 = c.x + x - link.x;
-						int dy2 = c.y + y - link.y;
-						int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
-						if (dist2 < dist) {
-							dirs.clear();
-							dist = dist2;
-							dirs.add(i);
-						} else if (dist2 == dist) {
+			if (c.team == Character.Team.NEUTRAL) {
+				if (5 * 5 > dx * dx + dy * dy) {
+					// Flee
+					int dist = Math.max(Math.abs(dx), Math.abs(dy));
+					final List<Integer> dirs = new ArrayList<>();
+					for (int i = 0; i < 9; ++i) {
+						int x = (i % 3) - 1;
+						int y = (i / 3) - 1;
+						if (c.canMoveTo(x, y)) {
+							int dx2 = c.x + x - link.x;
+							int dy2 = c.y + y - link.y;
+							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
+							if (dist2 > dist) {
+								dirs.clear();
+								dist = dist2;
+								dirs.add(i);
+							} else if (dist2 == dist) {
+								dirs.add(i);
+							}
+						}
+					}
+					if (!dirs.isEmpty()) {
+						int dir = dirs.get(r.nextInt(dirs.size()));
+						c.move((dir % 3) - 1, (dir / 3) - 1);
+					}
+				} else {
+					final List<Integer> dirs = new ArrayList<>();
+					for (int i = 0; i < 9; ++i) {
+						int x = (i % 3) - 1;
+						int y = (i / 3) - 1;
+						if (c.canMoveTo(x, y)) {
 							dirs.add(i);
 						}
 					}
+					if (!dirs.isEmpty()) {
+						int dir = dirs.get(r.nextInt(dirs.size()));
+						c.move((dir % 3) - 1, (dir / 3) - 1);
+					}
 				}
-				if (!dirs.isEmpty()) {
-					int dir = dirs.get(r.nextInt(dirs.size()));
-					c.move((dir % 3) - 1, (dir / 3) - 1);
+			} else {
+				if (c.range > 1 && c.range * c.range > dx * dx + dy * dy && los.getLightness(c.x, c.y) > 0.f) {
+					int x1 = screenWidth * tileSize / 2;
+					int y1 = screenHeight * tileSize / 2;
+					int x0 = x1 - dx * tileSize;
+					int y0 = y1 - dy * tileSize;
+					refreshArrowPath(x0, y0, x1, y1, c);
+					if (!arrowPath.isEmpty() && arrowPoint != null && arrowTarget.team != c.team) {
+						arrowIndex = 0;
+						c.priority += c.speed;
+						queue.add(c);
+						animator.addArrow(arrowPath.size() - 1, c);
+						return;
+					}
+				}
+				int dist = Math.max(Math.abs(dx), Math.abs(dy));
+				if (dist == 1) {
+					c.move(dx, dy);
+				} else {
+					final List<Integer> dirs = new ArrayList<>();
+					for (int i = 0; i < 9; ++i) {
+						int x = (i % 3) - 1;
+						int y = (i / 3) - 1;
+						if (c.canMoveTo(x, y)) {
+							int dx2 = c.x + x - link.x;
+							int dy2 = c.y + y - link.y;
+							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
+							if (dist2 < dist) {
+								dirs.clear();
+								dist = dist2;
+								dirs.add(i);
+							} else if (dist2 == dist) {
+								dirs.add(i);
+							}
+						}
+					}
+					if (!dirs.isEmpty()) {
+						int dir = dirs.get(r.nextInt(dirs.size()));
+						c.move((dir % 3) - 1, (dir / 3) - 1);
+					}
 				}
 			}
 		}
@@ -540,5 +583,19 @@ public class Zelda extends JComponent {
 				y0 += sy;
 			}
 		}
+	}
+
+	public int getTileX(int x) {
+		int tx = x / tileSize;
+		return link.x - screenWidth / 2 + tx;
+	}
+
+	public int getTileY(int y) {
+		int ty = y / tileSize;
+		return link.y - screenHeight / 2 + ty;
+	}
+
+	public int centralize(int x) {
+		return x * tileSize + tileSize / 2;
 	}
 }

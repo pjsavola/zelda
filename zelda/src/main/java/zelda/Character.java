@@ -17,6 +17,7 @@ public class Character extends GameObject {
     boolean flying;
     boolean jumping;
     boolean swimming;
+    boolean pushing;
 
     float animOpacity = 0.f;
     float animOpacityDropPerSec = 0.f;
@@ -26,6 +27,8 @@ public class Character extends GameObject {
     }
 
     public boolean canMoveTo(int dx, int dy) {
+        if (dx == 0 && dy == 0) return true;
+
         final boolean moveAllowed = canGoTo(x + dx, y + dy);
         if (!moveAllowed) {
             if (canPushTo(dx, dy) != null) {
@@ -39,11 +42,13 @@ public class Character extends GameObject {
     }
 
     private GameObject canPushTo(int dx, int dy) {
-        final Terrain terrain = zelda.getTerrain(x + dx, y + dy);
-        if (terrain != null && terrain.isPassable()) {
-            final GameObject o = zelda.getObject(x + dx, y + dy);
-            if (o != null && o.isPushable() && o.canGoTo(x + 2 * dx, y + 2 * dy)) {
-                return o;
+        if (pushing) {
+            final Terrain terrain = zelda.getTerrain(x + dx, y + dy);
+            if (terrain != null && terrain.isPassable()) {
+                final GameObject o = zelda.getObject(x + dx, y + dy);
+                if (o != null && o.isPushable() && o.canGoTo(x + 2 * dx, y + 2 * dy)) {
+                    return o;
+                }
             }
         }
         return null;
@@ -67,12 +72,14 @@ public class Character extends GameObject {
         boolean free = terrain != null && (terrain.isPassable() || (flying && !terrain.blocksFlying()) || (swimming && terrain.allowsSwimming()));
         if (free) {
             final GameObject o = zelda.getObject(x, y);
-            free = o == null || (o.isPassable() || (flying && !o.blocksFlying()));
+            free = o == null || o.isPassable();
         }
         return free;
     }
 
     public void move(int dx, int dy) {
+        if (dx == 0 && dy == 0) return;
+
         final GameObject o = zelda.getObject(x + dx, y + dy);
         if (o instanceof Character) {
             final Character c = (Character) o;
