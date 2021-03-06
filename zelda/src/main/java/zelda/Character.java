@@ -3,6 +3,7 @@ package zelda;
 import java.awt.*;
 
 public class Character extends GameObject {
+    public enum Team { FRIENDLY, NEUTRAL, ENEMY }
     int hp;
     int atk;
     int def;
@@ -12,6 +13,10 @@ public class Character extends GameObject {
     long priority;
     int chaseTurns;
     Zelda.Creature cre;
+    Team team = Team.ENEMY;
+    boolean flying;
+    boolean jumping;
+    boolean swimming;
 
     float animOpacity = 0.f;
     float animOpacityDropPerSec = 0.f;
@@ -20,13 +25,74 @@ public class Character extends GameObject {
         super(zelda);
     }
 
+    public boolean canMoveTo(int dx, int dy) {
+        final boolean moveAllowed = canGoTo(x + dx, y + dy);
+        if (!moveAllowed) {
+            if (canPushTo(dx, dy) != null) {
+                return true;
+            }
+            if (canJumpOver(dx, dy)) {
+                return true;
+            }
+        }
+        return moveAllowed;
+    }
+
+    private GameObject canPushTo(int dx, int dy) {
+        final Terrain terrain = zelda.getTerrain(x + dx, y + dy);
+        if (terrain != null && terrain.isPassable()) {
+            final GameObject o = zelda.getObject(x + dx, y + dy);
+            if (o != null && o.isPushable() && o.canGoTo(x + 2 * dx, y + 2 * dy)) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    private boolean canJumpOver(int dx, int dy) {
+        final Terrain terrain = zelda.getTerrain(x + dx, y + dy);
+        if (terrain != null && terrain.isJumpable()) {
+            return canGoTo(x + 2 * dx, y + 2 * dy);
+        }
+        final GameObject o = zelda.getObject(x + dx, y + dy);
+        if (o != null && o.isJumpable()) {
+            return canGoTo(x + 2 * dx, y + 2 * dy);
+        }
+        return false;
+    }
+
     @Override
+    public boolean canGoTo(int x, int y) {
+        final Terrain terrain = zelda.getTerrain(x, y);
+        boolean free = terrain != null && (terrain.isPassable() || (flying && !terrain.blocksFlying()) || (swimming && terrain.allowsSwimming()));
+        if (free) {
+            final GameObject o = zelda.getObject(x, y);
+            free = o == null || (o.isPassable() || (flying && !o.blocksFlying()));
+        }
+        return free;
+    }
+
     public void move(int dx, int dy) {
         final GameObject o = zelda.getObject(x + dx, y + dy);
         if (o instanceof Character) {
-            hit((Character) o);
+            final Character c = (Character) o;
+            if (c.team == team) {
+                if (c.canGoTo(x, y) && canGoTo(x + dx, y + dy)) {
+                    zelda.swapObjects(this, c);
+                }
+            } else {
+                hit(c);
+            }
+        } else if (canGoTo(x + dx, y + dy)) {
+            zelda.moveObject(this, x + dx, y + dy);
         } else {
-            super.move(dx, dy);
+            final GameObject pushTarget = canPushTo(dx, dy);
+            if (pushTarget != null) {
+                zelda.moveObject(pushTarget, x + 2 * dx, y + 2 * dy);
+                zelda.moveObject(this, x + dx, y + dy);
+            } else if (canJumpOver(dx, dy)) {
+                zelda.moveObject(this, x + 2 * dx, y + 2 * dy);
+            }
         }
     }
 

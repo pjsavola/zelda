@@ -2,7 +2,7 @@ package zelda;
 
 import java.awt.*;
 
-public class GameObject {
+public class GameObject implements TileFeature {
     protected Zelda zelda;
     protected int x;
     protected int y;
@@ -11,28 +11,19 @@ public class GameObject {
         this.zelda = zelda;
     }
 
-    public void move(int dx, int dy) {
-        final int tx = x + dx;
-        final int ty = y + dy;
-        if (zelda.canMoveTo(tx, ty)) {
-            zelda.moveObject(this, tx, ty);
-        } else {
-            GameObject o = zelda.getObject(tx, ty);
-            if (o != null && o.isPushable()) {
-                if (zelda.canMoveTo(x + 2 * dx, y + 2 * dy)) {
-                    zelda.moveObject(o, x + 2 * dx, y + 2 * dy);
-                    zelda.moveObject(this, tx, ty);
-                }
-            }
+    public boolean canGoTo(int x, int y) {
+        final Terrain terrain = zelda.getTerrain(x, y);
+        boolean free = terrain != null && terrain.isPassable();
+        if (free) {
+            final GameObject o = zelda.getObject(x, y);
+            free = o == null || o.isPassable();
         }
+        return free;
     }
 
-    public boolean isPushable() {
-        return false;
-    }
-
-    public boolean isPassable() {
-        return false;
+    @Override
+    public boolean blocksProjectiles() {
+        return true;
     }
 
     public void paint(Graphics g, int x, int y) {

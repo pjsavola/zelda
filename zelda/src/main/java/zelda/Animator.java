@@ -1,8 +1,6 @@
 package zelda;
 
-import java.awt.*;
 import java.util.*;
-import java.util.List;
 
 public class Animator {
     private Deque<Character> chars = new ArrayDeque<>();

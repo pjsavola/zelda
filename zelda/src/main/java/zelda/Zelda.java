@@ -189,11 +189,22 @@ public class Zelda extends JComponent {
 		link.maxHp = 20;
 		link.atk = 5;
 		link.def = 1;
-		placeObject(link, 36, 39);
+		link.team = Character.Team.FRIENDLY;
+		placeObject(link, 37, 45);
 
 		Boulder rock = new Boulder(this);
 		rock.feature = Feature.ROCK;
 		placeObject(rock, 41, 35);
+
+		Character boko2 = new Character(this);
+		boko2.cre = Creature.BOKOBLIN_BOW;
+		boko2.hp = 30;
+		boko2.maxHp = 30;
+		boko2.atk = 2;
+		boko2.def = 1;
+		boko2.speed = 150;
+		boko2.range = 10;
+		placeObject(boko2, 36, 39);
 
 		Character boko = new Character(this);
 		boko.cre = Creature.BOKOBLIN;
@@ -204,15 +215,7 @@ public class Zelda extends JComponent {
 		boko.speed = 1500;
 		placeObject(boko, 37, 42);
 
-		Character boko2 = new Character(this);
-		boko2.cre = Creature.BOKOBLIN_BOW;
-		boko2.hp = 30;
-		boko2.maxHp = 30;
-		boko2.atk = 2;
-		boko2.def = 1;
-		boko2.speed = 150;
-		boko2.range = 10;
-		placeObject(boko2, 37, 45);
+
 
 		calculateVision();
 	}
@@ -256,10 +259,10 @@ public class Zelda extends JComponent {
 			BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, new float[] {9}, 5);
 			((Graphics2D) g).setStroke(bs);
 			g.drawLine(x0, y0, x1, y1);
-			if (arrowTarget != null) {
+			if (arrowPoint != null) {
 				bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
 				((Graphics2D) g).setStroke(bs);
-				g.drawOval(arrowTarget.x - 8, arrowTarget.y - 8, 16, 16);
+				g.drawOval(arrowPoint.x - 8, arrowPoint.y - 8, 16, 16);
 			}
 		}
 	}
@@ -286,6 +289,20 @@ public class Zelda extends JComponent {
 		}
 	}
 
+	public void swapObjects(GameObject o1, GameObject o2) {
+		final int x = o1.x;
+		final int y = o1.y;
+		objectGrid[x][y] = o2;
+		objectGrid[o2.x][o2.y] = o1;
+		o1.x = o2.x;
+		o1.y = o2.y;
+		o2.x = x;
+		o2.y = y;
+		if (o1 == link || o2 == link) {
+			calculateVision();
+		}
+	}
+
 	public void destroyObject(GameObject o) {
 		if (objectGrid[o.x][o.y] != o) throw new RuntimeException("Object pmismatch: " + o.x + "," + o.y);
 		objectGrid[o.x][o.y] = null;
@@ -297,12 +314,12 @@ public class Zelda extends JComponent {
 		}
 	}
 	
-	public boolean canMoveTo(int x, int y) {
+	public boolean blocksProjectiles(int x, int y) {
 		final Terrain terrain = getTerrain(x, y);
-		boolean free = terrain != null && terrain.isPassable();
+		boolean free = terrain != null && !terrain.blocksProjectiles();
 		if (free) {
 			final GameObject o = getObject(x, y);
-			free = o == null || o.isPassable();
+			free = o == null || !o.blocksProjectiles();
 		}
 		return free;
 	}
@@ -345,7 +362,7 @@ public class Zelda extends JComponent {
 				int x0 = x1 - dx * tileSize;
 				int y0 = y1 - dy * tileSize;
 				refreshArrowPath(x0, y0, x1, y1, c);
-				if (!arrowPath.isEmpty() && arrowTarget != null) {
+				if (!arrowPath.isEmpty() && arrowPoint != null && arrowTarget.team != c.team) {
 					arrowIndex = 0;
 					c.priority += c.speed;
 					queue.add(c);
@@ -361,7 +378,7 @@ public class Zelda extends JComponent {
 				for (int i = 0; i < 9; ++i) {
 					int x = (i % 3) - 1;
 					int y = (i / 3) - 1;
-					if (canMoveTo(c.x + x, c.y + y)) {
+					if (c.canMoveTo(x, y)) {
 						int dx2 = c.x + x - link.x;
 						int dy2 = c.y + y - link.y;
 						int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
@@ -468,12 +485,9 @@ public class Zelda extends JComponent {
 
 	void hitArrow(Character src) {
 		arrowIndex = -1;
-		if (arrowTarget != null) {
-			int tx = arrowTarget.x / tileSize;
-			int ty = arrowTarget.y / tileSize;
-			int px = link.x - screenWidth / 2 + tx;
-			int py = link.y - screenHeight / 2 + ty;
-			src.hit((Character) objectGrid[px][py]);
+		if (arrowPoint != null && arrowTarget != null) {
+			src.hit(arrowTarget);
+			arrowPoint = null;
 			arrowTarget = null;
 		}
 		if (src == link) {
@@ -485,10 +499,12 @@ public class Zelda extends JComponent {
 	private int aimX = -1;
 	private int aimY = -1;
 	private final List<Point> arrowPath = new ArrayList<>();
-	private Point arrowTarget;
+	private Point arrowPoint;
+	private Character arrowTarget;
 	int arrowIndex = -1;
 
 	private void refreshArrowPath(int x0, int y0, int x1, int y1, Character src) {
+		arrowPoint = null;
 		arrowTarget = null;
 		arrowPath.clear();
 		int dx = Math.abs(x1 - x0);
@@ -501,11 +517,12 @@ public class Zelda extends JComponent {
 			int ty = y0 / tileSize;
 			int px = link.x - screenWidth / 2 + tx;
 			int py = link.y - screenHeight / 2 + ty;
-			if (!canMoveTo(px, py)) {
+			if (!blocksProjectiles(px, py)) {
 				if (objectGrid[px][py] instanceof Character) {
 					Character c = (Character) objectGrid[px][py];
 					if (c != src) {
-						arrowTarget = new Point(tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+						arrowPoint = new Point(tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
+						arrowTarget = c;
 						break;
 					}
 				} else {
