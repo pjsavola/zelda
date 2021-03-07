@@ -112,7 +112,10 @@ public class Zelda extends JComponent {
     public enum Creature {
 		LINK_NO_ITEMS("link_no_items"),
         BOKOBLIN("bokoblin"),
-		BOKOBLIN_BOW("bokoblin boko club");
+		BOKOBLIN_BOW("bokoblin boko club"),
+		BOAR("boar"),
+		FOX("fox2"),
+		MOBLIN("moblin2");
 
 		private Creature(String file) {
 			String path = "images/objects/" + file + ".png";
@@ -158,10 +161,11 @@ public class Zelda extends JComponent {
 	private int height;
 	private Terrain[][] grid;
 	private GameObject[][] objectGrid;
+	private boolean[][] visited;
 	Character link = new Character(this);
     final Animator animator = new Animator(this);
     private final PriorityQueue<Character> queue = new PriorityQueue<>(Comparator.comparingLong(c -> c.priority));
-    private float vision = 11.f;
+    private float vision = 9.5f;
     private Vision los;
 
     private final List<Character> enemies = new ArrayList<>();
@@ -172,6 +176,7 @@ public class Zelda extends JComponent {
 		height = image.getHeight();
 		grid = new Terrain[width][height];
 		objectGrid = new GameObject[width][height];
+		visited = new boolean[width][height];
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
 				int pixel = image.getRGB(i, j);
@@ -190,6 +195,7 @@ public class Zelda extends JComponent {
 		link.atk = 5;
 		link.def = 1;
 		link.team = Character.Team.FRIENDLY;
+		link.pushing = true;
 		//link.swimming = true;
 		placeObject(link, 37, 45);
 
@@ -198,7 +204,7 @@ public class Zelda extends JComponent {
 		placeObject(rock, 41, 35);
 
 		Character boko2 = new Character(this);
-		boko2.cre = Creature.BOKOBLIN_BOW;
+		boko2.cre = Creature.FOX;
 		boko2.hp = 30;
 		boko2.maxHp = 30;
 		boko2.atk = 2;
@@ -209,7 +215,7 @@ public class Zelda extends JComponent {
 		placeObject(boko2, 36, 39);
 
 		Character boko = new Character(this);
-		boko.cre = Creature.BOKOBLIN;
+		boko.cre = Creature.BOAR;
 		boko.hp = 30;
 		boko.maxHp = 30;
 		boko.atk = 2;
@@ -233,8 +239,12 @@ public class Zelda extends JComponent {
                 final int x = i * tileSize;
                 final int y = j * tileSize;
 				if (los.getLightness(px, py) <= 0.f) {
-				    g.setColor(Color.BLACK);
-				    g.fillRect(x, y, tileSize, tileSize);
+					if (visited[px][py]) {
+						g.drawImage(grid[px][py].getDarkImage(), x, y, null);
+					} else {
+						g.setColor(Color.BLACK);
+						g.fillRect(x, y, tileSize, tileSize);
+					}
 				    continue;
                 }
 				g.drawImage(grid[px][py].getImage(), x, y, null);
@@ -335,13 +345,28 @@ public class Zelda extends JComponent {
 	}
 
     public void calculateVision() {
-        final int minX = Math.max(0, link.x - screenWidth / 2);
-        final int maxX = Math.min(width, link.x + screenWidth / 2 + 1);
-        final int minY = Math.max(0, link.y - screenHeight / 2);
-        final int maxY = Math.min(height, link.y + screenHeight / 2 + 1);
-        los = new Vision(minX, link.x, maxX, minY, link.y, maxY, grid, vision);
-        los.calculateFOV();
-    }
+		final int minX = Math.max(0, link.x - screenWidth / 2);
+		final int maxX = Math.min(width, link.x + screenWidth / 2 + 1);
+		final int minY = Math.max(0, link.y - screenHeight / 2);
+		final int maxY = Math.min(height, link.y + screenHeight / 2 + 1);
+		los = new Vision(minX, link.x, maxX, minY, link.y, maxY, grid, vision);
+		los.calculateFOV();
+		for (int i = 0; i < screenWidth; ++i) {
+			int px = link.x - screenWidth / 2 + i;
+			if (px < 0 || px >= width) continue;
+
+			for (int j = 0; j < screenHeight; ++j) {
+				int py = link.y - screenHeight / 2 + j;
+				if (py < 0 || py >= height) continue;
+
+				final int x = i * tileSize;
+				final int y = j * tileSize;
+				if (los.getLightness(px, py) > 0.f) {
+					visited[px][py] = true;
+				}
+			}
+		}
+	}
 
     public Random r = new Random();
 
@@ -398,6 +423,9 @@ public class Zelda extends JComponent {
 					}
 				}
 			} else {
+				// If range > 1 calculate LoS for creature
+				// If target is not visible, not shootable or no target, pick new target
+				// Pick closest target which is shootable and visible
 				if (c.range > 1 && c.range * c.range > dx * dx + dy * dy && los.getLightness(c.x, c.y) > 0.f) {
 					int x1 = screenWidth * tileSize / 2;
 					int y1 = screenHeight * tileSize / 2;
