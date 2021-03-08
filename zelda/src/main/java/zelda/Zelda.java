@@ -238,7 +238,7 @@ public class Zelda extends JComponent {
 					if (objectGrid[px][py] != null) {
 						objectGrid[px][py].paint(g, x, y);
 					}
-					if (arrowTarget != null) {
+					if (arrowTarget != null && arrowIndex == -1) {
 						if (arrowTarget.x == px && arrowTarget.y == py) {
 							g.setColor(Color.ORANGE);
 							BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);

@@ -145,6 +145,10 @@ public class Character extends GameObject {
         los.calculateFOV();
     }
 
+    public boolean canSee(Character c) {
+        return canSee(c.x, c.y);
+    }
+
     public boolean canSee(int x, int y) {
         return los.getLightness(x, y) > 0.f;
     }
@@ -182,7 +186,12 @@ public class Character extends GameObject {
             return target;
         }
         if (group != null) {
-            final List<Character> groupTargets = group.members().filter(c -> c != this).map(c -> c.target).filter(Objects::nonNull).collect(Collectors.toList());
+            final List<Character> groupTargets = group.members()
+                    .filter(c -> c != this)
+                    .filter(c -> c.target != null)
+                    .filter(c -> c.canSee(c.target))
+                    .map(c -> c.target)
+                    .collect(Collectors.toList());
             if (chooseTarget(groupTargets)) {
                 chaseTurns = 3;
                 return target;
@@ -228,18 +237,30 @@ public class Character extends GameObject {
         if (dist == 1) {
             return true;
         } else if (range * range >= dx * dx + dy * dy) {
-            if (canSee(c.x, c.y) && canShoot(c.x, c.y)) {
+            if (canSee(c) && canShoot(c)) {
                 return true;
             }
         }
         return false;
     }
 
-    boolean canShoot(int x, int y) {
-        int x0 = Util.center(this.x);
-        int y0 = Util.center(this.y);
-        final int x1 = Util.center(x);
-        final int y1 = Util.center(y);
+    public int attack(Character c) {
+        int dist = Math.max(Math.abs(target.x), Math.abs(target.y));
+        if (dist == 1) {
+            hit(c);
+            return speed;
+        }
+        refreshArrowTarget(target.x, target.y);
+        zelda.arrowIndex = 0;
+        zelda.animator.addArrow(zelda.arrowPath.size() - 1, this);
+        return speed;
+    }
+
+    boolean canShoot(Character c) {
+        int x0 = Util.center(x);
+        int y0 = Util.center(y);
+        final int x1 = Util.center(c.x);
+        final int y1 = Util.center(c.y);
         int dx = Math.abs(x1 - x0);
         int sx = x0 < x1 ? 1 : -1;
         int dy = -Math.abs(y1 - y0);
@@ -249,14 +270,15 @@ public class Character extends GameObject {
             int tx = Util.tile(x0);
             int ty = Util.tile(y0);
             if (zelda.blocksProjectiles(tx, ty)) {
-                System.err.println(tx + " " + ty + " blocks projs");
                 break;
             } else {
                 final GameObject o = zelda.getObject(tx, ty);
                 if (o instanceof Character) {
-                    final Character c = (Character) o;
-                    if (c != this) {
-                        return c.x == x && c.y == y;
+                    final Character target = (Character) o;
+                    if (target == c) {
+                        return true;
+                    } else if (target != this) {
+                        break;
                     }
                 }
             }
@@ -396,18 +418,8 @@ public class Character extends GameObject {
             case ENEMY:
                 if (target == null) return 0;
 
-                dx = target.x - x;
-                dy = target.y - y;
-                int dist = Math.max(Math.abs(dx), Math.abs(dy));
-                if (dist == 1) {
-                    move(dx, dy);
-                    return speed;
-                }
-                if (range > 1 && range * range >= dx * dx + dy * dy && canHit(target)) {
-                    refreshArrowTarget(target.x, target.y);
-                    zelda.arrowIndex = 0;
-                    zelda.animator.addArrow(zelda.arrowPath.size() - 1, this);
-                    return speed;
+                if (canHit(target)) {
+                    return attack(target);
                 }
                 dir = getRandomEngageDir(target);
                 move((dir % 3) - 1, (dir / 3) - 1);
