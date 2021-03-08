@@ -5,8 +5,8 @@ import java.awt.*;
 public class Boulder extends GameObject {
     Feature feature;
 
-    public Boulder(Zelda zelda) {
-        super(zelda);
+    public Boulder(Zelda zelda, int x, int y) {
+        super(zelda, x, y);
     }
     @Override
     public boolean isPushable() {

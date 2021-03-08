@@ -7,8 +7,9 @@ public class GameObject implements TileFeature {
     protected int x;
     protected int y;
 
-    public GameObject(Zelda zelda) {
+    public GameObject(Zelda zelda, int x, int y) {
         this.zelda = zelda;
+        zelda.placeObject(this, x, y);
     }
 
     public boolean canGoTo(int x, int y) {

@@ -15,8 +15,8 @@ import javax.swing.JFrame;
 
 public class Zelda extends JComponent {
 	static final int tileSize = 24;
-	private static final int screenWidth = 21;
-	private static final int screenHeight = 21;
+	static final int screenWidth = 21;
+	static final int screenHeight = 21;
 	private static final Dimension dim = new Dimension(tileSize * screenWidth, tileSize * screenHeight);
 	public static final String resourcePath = Zelda.class.getResource("/").getPath();
 
@@ -157,16 +157,14 @@ public class Zelda extends JComponent {
 		private final BufferedImage[] variants = new BufferedImage[11];
 	}
 
-	private int width;
-	private int height;
-	private Terrain[][] grid;
+	int width;
+	int height;
+	Terrain[][] grid;
 	private GameObject[][] objectGrid;
 	private boolean[][] visited;
-	Character link = new Character(this);
+	Character link;
     final Animator animator = new Animator(this);
     private final PriorityQueue<Character> queue = new PriorityQueue<>(Comparator.comparingLong(c -> c.priority));
-    private float vision = 9.5f;
-    private Vision los;
 
     private final List<Character> enemies = new ArrayList<>();
 	
@@ -189,6 +187,7 @@ public class Zelda extends JComponent {
 				}
 			}
 		}
+		link = new Link(this, 37, 45);
 		link.cre = Creature.LINK_NO_ITEMS;
 		link.hp = 20;
 		link.maxHp = 20;
@@ -197,35 +196,29 @@ public class Zelda extends JComponent {
 		link.team = Character.Team.FRIENDLY;
 		link.pushing = true;
 		//link.swimming = true;
-		placeObject(link, 37, 45);
 
-		Boulder rock = new Boulder(this);
+		Boulder rock = new Boulder(this, 41, 35);
 		rock.feature = Feature.ROCK;
-		placeObject(rock, 41, 35);
 
-		Character boko2 = new Character(this);
-		boko2.cre = Creature.FOX;
+		Character boko2 = new Character(this, 36, 39);
+		boko2.cre = Creature.BOKOBLIN_BOW;
 		boko2.hp = 30;
 		boko2.maxHp = 30;
 		boko2.atk = 2;
 		boko2.def = 1;
 		boko2.speed = 150;
 		boko2.range = 10;
-		boko2.team = Character.Team.NEUTRAL;
-		placeObject(boko2, 36, 39);
+		//boko2.team = Character.Team.NEUTRAL;
 
-		Character boko = new Character(this);
-		boko.cre = Creature.BOAR;
+		Character boko = new Character(this, 37, 42);
+		boko.cre = Creature.BOKOBLIN;
 		boko.hp = 30;
 		boko.maxHp = 30;
 		boko.atk = 2;
 		boko.def = 1;
-		boko.speed = 1500;
-		placeObject(boko, 37, 42);
+		boko.speed = 150;
 
-
-
-		calculateVision();
+		Group.from(boko, boko2);
 	}
 	
 	@Override
@@ -233,49 +226,58 @@ public class Zelda extends JComponent {
 		for (int i = 0; i < screenWidth; ++i) {
 			int px = link.x - screenWidth / 2 + i;
 			if (px < 0 || px >= width) continue;
+
 			for (int j = 0; j < screenHeight; ++j) {
 				int py = link.y - screenHeight / 2 + j;
 				if (py < 0 || py >= height) continue;
+
                 final int x = i * tileSize;
                 final int y = j * tileSize;
-				if (los.getLightness(px, py) <= 0.f) {
+				if (link.canSee(px, py)) {
+					g.drawImage(grid[px][py].getImage(), x, y, null);
+					if (objectGrid[px][py] != null) {
+						objectGrid[px][py].paint(g, x, y);
+					}
+					if (arrowTarget != null) {
+						if (arrowTarget.x == px && arrowTarget.y == py) {
+							g.setColor(Color.ORANGE);
+							BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
+							((Graphics2D) g).setStroke(bs);
+							g.drawOval(x + 4, y + 4, 16, 16);
+						}
+					}
+				} else {
 					if (visited[px][py]) {
 						g.drawImage(grid[px][py].getDarkImage(), x, y, null);
 					} else {
 						g.setColor(Color.BLACK);
 						g.fillRect(x, y, tileSize, tileSize);
 					}
-				    continue;
                 }
-				g.drawImage(grid[px][py].getImage(), x, y, null);
-				if (objectGrid[px][py] != null) {
-					objectGrid[px][py].paint(g, x, y);
-				}
 			}
 		}
 		if (arrowIndex >= 0) {
-			int x0 = arrowPath.get(Math.max(0, arrowIndex - 9)).x;
-			int y0 = arrowPath.get(Math.max(0, arrowIndex - 9)).y;
-			int x1 = arrowPath.get(arrowIndex).x;
-			int y1 = arrowPath.get(arrowIndex).y;
+			final int offsetX = Util.center(link.x) - screenWidth * tileSize / 2;
+			final int offsetY = Util.center(link.y) - screenHeight * tileSize / 2;
+			int x0 = arrowPath.get(Math.max(0, arrowIndex - 9)).x - offsetX;
+			int y0 = arrowPath.get(Math.max(0, arrowIndex - 9)).y - offsetY;
+			int x1 = arrowPath.get(arrowIndex).x - offsetX;
+			int y1 = arrowPath.get(arrowIndex).y - offsetY;
 		    g.setColor(Color.ORANGE);
 		    BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
             ((Graphics2D) g).setStroke(bs);
 			g.drawLine(x0, y0, x1, y1);
         } else if (aimX != -1 && aimY != -1 && !arrowPath.isEmpty()) {
-			int x0 = arrowPath.get(0).x;
-			int y0 = arrowPath.get(0).y;
-			int x1 = arrowPath.get(arrowPath.size() - 1).x;
-			int y1 = arrowPath.get(arrowPath.size() - 1).y;
+			final int offsetX = Util.center(link.x) - screenWidth * tileSize / 2;
+			final int offsetY = Util.center(link.y) - screenHeight * tileSize / 2;
+			int x0 = arrowPath.get(0).x - offsetX;
+			int y0 = arrowPath.get(0).y - offsetY;
+			int x1 = arrowPath.get(arrowPath.size() - 1).x - offsetX;
+			int y1 = arrowPath.get(arrowPath.size() - 1).y - offsetY;
 			g.setColor(Color.ORANGE);
 			BasicStroke bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, new float[] {9}, 5);
 			((Graphics2D) g).setStroke(bs);
 			g.drawLine(x0, y0, x1, y1);
-			if (arrowPoint != null) {
-				bs = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 3, null, 0);
-				((Graphics2D) g).setStroke(bs);
-				g.drawOval(arrowPoint.x - 8, arrowPoint.y - 8, 16, 16);
-			}
 		}
 	}
 
@@ -284,7 +286,7 @@ public class Zelda extends JComponent {
 		objectGrid[x][y] = o;
 		o.x = x;
 		o.y = y;
-		if (o instanceof Character && o != link) {
+		if (o instanceof Character && !(o instanceof Link)) {
 			enemies.add((Character) o);
 		}
 	}
@@ -296,8 +298,9 @@ public class Zelda extends JComponent {
 		objectGrid[x][y] = o;
 		o.x = x;
 		o.y = y;
-		if (o == link) {
-			calculateVision();
+		if (o instanceof Character) {
+			((Character) o).calculateVision();
+
 		}
 	}
 
@@ -310,8 +313,11 @@ public class Zelda extends JComponent {
 		o1.y = o2.y;
 		o2.x = x;
 		o2.y = y;
-		if (o1 == link || o2 == link) {
-			calculateVision();
+		if (o1 instanceof Character) {
+			((Character) o1).calculateVision();
+		}
+		if (o2 instanceof Character) {
+			((Character) o2).calculateVision();
 		}
 	}
 
@@ -328,12 +334,10 @@ public class Zelda extends JComponent {
 	
 	public boolean blocksProjectiles(int x, int y) {
 		final Terrain terrain = getTerrain(x, y);
-		boolean free = terrain != null && !terrain.blocksProjectiles();
-		if (free) {
-			final GameObject o = getObject(x, y);
-			free = o == null || !o.blocksProjectiles();
-		}
-		return free;
+		if (terrain == null || terrain.blocksProjectiles()) return true;
+
+		final GameObject o = getObject(x, y);
+		return o != null && o.blocksProjectiles();
 	}
 	
 	public Terrain getTerrain(int x, int y) {
@@ -344,24 +348,18 @@ public class Zelda extends JComponent {
 		return x >= 0 && x < width && y >= 0 && y < height ? objectGrid[x][y] : null;
 	}
 
-    public void calculateVision() {
-		final int minX = Math.max(0, link.x - screenWidth / 2);
-		final int maxX = Math.min(width, link.x + screenWidth / 2 + 1);
-		final int minY = Math.max(0, link.y - screenHeight / 2);
-		final int maxY = Math.min(height, link.y + screenHeight / 2 + 1);
-		los = new Vision(minX, link.x, maxX, minY, link.y, maxY, grid, vision);
-		los.calculateFOV();
+    public void updateExploredArea(Link l) {
 		for (int i = 0; i < screenWidth; ++i) {
-			int px = link.x - screenWidth / 2 + i;
+			int px = l.x - screenWidth / 2 + i;
 			if (px < 0 || px >= width) continue;
 
 			for (int j = 0; j < screenHeight; ++j) {
-				int py = link.y - screenHeight / 2 + j;
+				int py = l.y - screenHeight / 2 + j;
 				if (py < 0 || py >= height) continue;
 
 				final int x = i * tileSize;
 				final int y = j * tileSize;
-				if (los.getLightness(px, py) > 0.f) {
+				if (l.canSee(px, py)) {
 					visited[px][py] = true;
 				}
 			}
@@ -380,105 +378,17 @@ public class Zelda extends JComponent {
 			repaint();
 			return;
 		}
-		if (c.chaseTurns > 0) {
-			int dx = link.x - c.x;
-			int dy = link.y - c.y;
-			if (c.team == Character.Team.NEUTRAL) {
-				if (5 * 5 > dx * dx + dy * dy) {
-					// Flee
-					int dist = Math.max(Math.abs(dx), Math.abs(dy));
-					final List<Integer> dirs = new ArrayList<>();
-					for (int i = 0; i < 9; ++i) {
-						int x = (i % 3) - 1;
-						int y = (i / 3) - 1;
-						if (c.canMoveTo(x, y)) {
-							int dx2 = c.x + x - link.x;
-							int dy2 = c.y + y - link.y;
-							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
-							if (dist2 > dist) {
-								dirs.clear();
-								dist = dist2;
-								dirs.add(i);
-							} else if (dist2 == dist) {
-								dirs.add(i);
-							}
-						}
-					}
-					if (!dirs.isEmpty()) {
-						int dir = dirs.get(r.nextInt(dirs.size()));
-						c.move((dir % 3) - 1, (dir / 3) - 1);
-					}
-				} else {
-					final List<Integer> dirs = new ArrayList<>();
-					for (int i = 0; i < 9; ++i) {
-						int x = (i % 3) - 1;
-						int y = (i / 3) - 1;
-						if (c.canMoveTo(x, y)) {
-							dirs.add(i);
-						}
-					}
-					if (!dirs.isEmpty()) {
-						int dir = dirs.get(r.nextInt(dirs.size()));
-						c.move((dir % 3) - 1, (dir / 3) - 1);
-					}
-				}
-			} else {
-				// If range > 1 calculate LoS for creature
-				// If target is not visible, not shootable or no target, pick new target
-				// Pick closest target which is shootable and visible
-				if (c.range > 1 && c.range * c.range > dx * dx + dy * dy && los.getLightness(c.x, c.y) > 0.f) {
-					int x1 = screenWidth * tileSize / 2;
-					int y1 = screenHeight * tileSize / 2;
-					int x0 = x1 - dx * tileSize;
-					int y0 = y1 - dy * tileSize;
-					refreshArrowPath(x0, y0, x1, y1, c);
-					if (!arrowPath.isEmpty() && arrowPoint != null && arrowTarget.team != c.team) {
-						arrowIndex = 0;
-						c.priority += c.speed;
-						queue.add(c);
-						animator.addArrow(arrowPath.size() - 1, c);
-						return;
-					}
-				}
-				int dist = Math.max(Math.abs(dx), Math.abs(dy));
-				if (dist == 1) {
-					c.move(dx, dy);
-				} else {
-					final List<Integer> dirs = new ArrayList<>();
-					for (int i = 0; i < 9; ++i) {
-						int x = (i % 3) - 1;
-						int y = (i / 3) - 1;
-						if (c.canMoveTo(x, y)) {
-							int dx2 = c.x + x - link.x;
-							int dy2 = c.y + y - link.y;
-							int dist2 = Math.max(Math.abs(dx2), Math.abs(dy2));
-							if (dist2 < dist) {
-								dirs.clear();
-								dist = dist2;
-								dirs.add(i);
-							} else if (dist2 == dist) {
-								dirs.add(i);
-							}
-						}
-					}
-					if (!dirs.isEmpty()) {
-						int dir = dirs.get(r.nextInt(dirs.size()));
-						c.move((dir % 3) - 1, (dir / 3) - 1);
-					}
-				}
-			}
-		}
-		--c.chaseTurns;
-		if (los.getLightness(c.x, c.y) > 0.f) {
-			c.chaseTurns = 3;
-		}
-		if (c.chaseTurns > 0) {
-			c.priority += c.speed;
+		final Character target = c.pickTarget();
+		final int cost = c.pickMove();
+		if (cost > 0) {
+			c.priority += cost;
 			queue.add(c);
 		} else {
 			enemies.add(c);
 		}
-		nextTurn();
+		if (arrowTarget == null) {
+			nextTurn();
+		}
 	}
 
 	public void press(char input) {
@@ -496,6 +406,7 @@ public class Zelda extends JComponent {
             case 'z': link.move(-1, 1); break;
             case 'x': link.move(0, 1); break;
             case 'c': link.move(1, 1); break;
+			case '1': System.err.println(link.pickTarget()); break;
 			case 's': break;
 			default: return;
         }
@@ -508,9 +419,8 @@ public class Zelda extends JComponent {
 		Iterator<Character> it = enemies.iterator();
 		while (it.hasNext()) {
 			Character c = it.next();
-			if (los.getLightness(c.x, c.y) > 0.f) {
+			if (c.pickTarget() != null) {
 				c.priority = link.priority;
-				c.chaseTurns = 3;
 				queue.add(c);
 				it.remove();
 			}
@@ -542,10 +452,8 @@ public class Zelda extends JComponent {
 			if (tx >= 0 && tx < screenWidth && ty >= 0 && ty < screenHeight) {
 				int px = link.x - screenWidth / 2 + tx;
 				int py = link.y - screenHeight / 2 + ty;
-				if (px >= 0 && px < width && py >= 0 && py < height && los.getLightness(px, py) > 0.f) {
-					int x0 = screenWidth * tileSize / 2;
-					int y0 = screenHeight * tileSize / 2;
-					refreshArrowPath(x0, y0, tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2, link);
+				if (px >= 0 && px < width && py >= 0 && py < height && link.canSee(px, py)) {
+					link.refreshArrowTarget(px, py);
 					aimX = tx;
 					aimY = ty;
 				}
@@ -556,9 +464,8 @@ public class Zelda extends JComponent {
 
 	void hitArrow(Character src) {
 		arrowIndex = -1;
-		if (arrowPoint != null && arrowTarget != null) {
+		if (arrowTarget != null) {
 			src.hit(arrowTarget);
-			arrowPoint = null;
 			arrowTarget = null;
 		}
 		if (src == link) {
@@ -569,49 +476,9 @@ public class Zelda extends JComponent {
 
 	private int aimX = -1;
 	private int aimY = -1;
-	private final List<Point> arrowPath = new ArrayList<>();
-	private Point arrowPoint;
-	private Character arrowTarget;
+	final List<Point> arrowPath = new ArrayList<>();
+	Character arrowTarget;
 	int arrowIndex = -1;
-
-	private void refreshArrowPath(int x0, int y0, int x1, int y1, Character src) {
-		arrowPoint = null;
-		arrowTarget = null;
-		arrowPath.clear();
-		int dx = Math.abs(x1 - x0);
-		int sx = x0 < x1 ? 1 : -1;
-		int dy = -Math.abs(y1 - y0);
-		int sy = y0 < y1 ? 1 : -1;
-		int err = dx + dy;
-		while (x0 != x1 || y0 != y1) {
-			int tx = x0 / tileSize;
-			int ty = y0 / tileSize;
-			int px = link.x - screenWidth / 2 + tx;
-			int py = link.y - screenHeight / 2 + ty;
-			if (!blocksProjectiles(px, py)) {
-				if (objectGrid[px][py] instanceof Character) {
-					Character c = (Character) objectGrid[px][py];
-					if (c != src) {
-						arrowPoint = new Point(tx * tileSize + tileSize / 2, ty * tileSize + tileSize / 2);
-						arrowTarget = c;
-						break;
-					}
-				} else {
-					break;
-				}
-			}
-		    arrowPath.add(new Point(x0, y0));
-			int e2 = 2 * err;
-			if (e2 >= dy) {
-				err += dy;
-				x0 += sx;
-			}
-			if (e2 <= dx) {
-				err += dx;
-				y0 += sy;
-			}
-		}
-	}
 
 	public int getTileX(int x) {
 		int tx = x / tileSize;
